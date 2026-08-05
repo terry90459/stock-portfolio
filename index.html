@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>持股帳本</title>
+<meta name="theme-color" content="#10141c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -29,8 +31,8 @@
     color: var(--text);
     font-family: var(--font-body);
     min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
   }
-  /* ticker tape */
   .ticker-wrap{
     overflow:hidden;
     white-space:nowrap;
@@ -53,268 +55,174 @@
     from{ transform: translateX(0); }
     to{ transform: translateX(-50%); }
   }
-
-  .wrap{
-    max-width: 1040px;
-    margin: 0 auto;
-    padding: 28px 20px 80px;
+  @media (prefers-reduced-motion: reduce){
+    .ticker-track{ animation: none; }
   }
+
+  .wrap{ max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
   .masthead{
-    display:flex;
-    align-items:baseline;
-    justify-content: space-between;
-    margin-bottom: 22px;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 16px;
+    display:flex; align-items:baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin-bottom: 20px; border-bottom: 1px solid var(--line); padding-bottom: 16px;
   }
   .masthead h1{
     font-family: var(--font-display);
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    margin:0;
+    font-size: 26px; font-weight: 700; letter-spacing: 0.01em; margin:0;
   }
   .masthead .dot{
-    display:inline-block;
-    width:7px; height:7px;
-    border-radius:50%;
-    background: var(--gain);
-    margin-right:9px;
+    display:inline-block; width:7px; height:7px; border-radius:50%;
+    background: var(--gain); margin-right:9px;
     box-shadow: 0 0 0 3px rgba(74,222,156,0.15);
   }
-  .masthead .date{
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--muted);
+  .quote-status{
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
+    display:flex; align-items:center; gap:8px;
   }
+  .quote-status .badge{
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 2px 7px; color: var(--gold);
+  }
+  .quote-status.stale .badge{ color: var(--muted); }
 
-  /* summary strip */
   .summary{
-    display:grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow:hidden;
-    margin-bottom: 28px;
+    display:grid; grid-template-columns: repeat(3, 1fr);
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; overflow:hidden; margin-bottom: 26px;
   }
-  .stat{
-    padding: 18px 20px;
-    border-right: 1px solid var(--line);
-  }
+  .stat{ padding: 18px 20px; border-right: 1px solid var(--line); }
   .stat:last-child{ border-right:none; }
-  .stat .label{
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 0.04em;
-    margin-bottom: 8px;
-  }
+  .stat .label{ font-size: 12px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 8px; }
   .stat .value{
-    font-family: var(--font-mono);
-    font-size: 24px;
-    font-weight: 600;
-    display:flex;
-    align-items:center;
-    gap:6px;
+    font-family: var(--font-mono); font-size: 24px; font-weight: 600;
+    display:flex; align-items:center; gap:6px;
   }
   .stat .value.gain{ color: var(--gain); }
   .stat .value.loss{ color: var(--loss); }
   .stat .value.neutral{ color: var(--text); }
   .arrow{ font-size: 15px; }
 
-  section{ margin-bottom: 32px; }
+  section{ margin-bottom: 30px; }
   .section-title{
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--gold);
-    margin-bottom: 12px;
-    display:flex;
-    align-items:center;
-    gap:8px;
+    font-family: var(--font-display); font-size: 15px; font-weight: 700;
+    letter-spacing: 0.02em; color: var(--gold); margin-bottom: 12px;
+    display:flex; align-items:center; gap:8px;
   }
   .section-title::before{
-    content:"";
-    width:3px; height:14px;
-    background: var(--gold);
-    display:inline-block;
+    content:""; width:3px; height:14px; background: var(--gold); display:inline-block;
   }
 
-  /* form */
   .form-card{
-    background: var(--panel-alt);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 18px;
+    background: var(--panel-alt); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px;
   }
   .form-grid{
-    display:grid;
-    grid-template-columns: 100px 1fr 90px 110px 110px auto;
-    gap: 10px;
-    align-items:end;
+    display:grid; grid-template-columns: 110px 1fr 100px 120px auto;
+    gap: 10px; align-items:end;
   }
   .field label{
-    display:block;
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 6px;
-    letter-spacing: 0.03em;
+    display:block; font-size: 11px; color: var(--muted);
+    margin-bottom: 6px; letter-spacing: 0.03em;
   }
   .field input{
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 14px;
-    padding: 9px 10px;
-    transition: border-color .15s;
+    width: 100%; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; color: var(--text); font-family: var(--font-mono);
+    font-size: 15px; padding: 9px 10px; transition: border-color .15s;
   }
-  .field input:focus{
-    outline:none;
-    border-color: var(--gold-dim);
-  }
-  .field.name-preview{
-    font-family: var(--font-body);
-  }
+  .field input:focus{ outline:none; border-color: var(--gold-dim); }
   .name-tag{
-    height: 38px;
-    display:flex; align-items:center;
-    color: var(--text);
-    font-size: 14px;
-    padding: 0 2px;
+    height: 40px; display:flex; align-items:center; gap:8px;
+    font-size: 14px; padding: 0 2px;
   }
   .name-tag.unknown{ color: var(--muted); font-style: italic; }
+  .market-chip{
+    font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px;
+  }
   .add-btn{
-    background: var(--gold);
-    color: #1a1406;
-    border: none;
-    border-radius: 6px;
-    padding: 9px 18px;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 13px;
-    cursor:pointer;
-    white-space:nowrap;
-    height: 38px;
+    background: var(--gold); color: #1a1406; border: none; border-radius: 6px;
+    padding: 0 18px; font-family: var(--font-body); font-weight: 700;
+    font-size: 13px; cursor:pointer; white-space:nowrap; height: 40px;
     transition: filter .15s;
   }
   .add-btn:hover{ filter: brightness(1.1); }
-  .add-btn:disabled{ opacity: .4; cursor: not-allowed; }
-  .hint{
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 10px;
+  .add-btn:focus-visible, .del-btn:focus-visible, .reset-btn:focus-visible{
+    outline: 2px solid var(--gold); outline-offset: 2px;
   }
+  .hint{ font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
 
-  /* table */
   table{
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow: hidden;
+    width: 100%; border-collapse: collapse; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
   }
   thead th{
-    text-align: right;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: 0.03em;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--line);
-    background: var(--panel-alt);
+    text-align: right; font-size: 11px; font-weight: 600; color: var(--muted);
+    letter-spacing: 0.03em; padding: 10px 14px;
+    border-bottom: 1px solid var(--line); background: var(--panel-alt);
+    white-space: nowrap;
   }
   thead th.left{ text-align:left; }
   tbody td{
-    text-align: right;
-    padding: 11px 14px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    border-bottom: 1px solid var(--line);
+    text-align: right; padding: 11px 14px; font-family: var(--font-mono);
+    font-size: 13px; border-bottom: 1px solid var(--line); white-space: nowrap;
   }
   tbody tr:last-child td{ border-bottom: none; }
   tbody td.left{ text-align:left; font-family: var(--font-body); }
-  tbody tr:hover{ background: rgba(255,255,255,0.02); }
   .code-cell{ color: var(--gold); font-weight:600; }
   .gain-text{ color: var(--gain); }
   .loss-text{ color: var(--loss); }
-  .cur-price-input{
-    width: 78px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-bottom: 1px dashed var(--line);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    text-align: right;
-    padding: 2px 4px;
-  }
-  .cur-price-input:focus{
-    outline:none;
-    border-bottom: 1px solid var(--gold-dim);
-  }
-  .del-btn{
-    background:none;
-    border:none;
-    color: var(--muted);
-    cursor:pointer;
-    font-size: 15px;
-    padding: 2px 6px;
-    line-height:1;
-  }
-  .del-btn:hover{ color: var(--loss); }
-  tr.group-row{
-    background: var(--panel-alt);
-    cursor: pointer;
-  }
+
+  tr.group-row{ background: var(--panel-alt); cursor: pointer; }
   tr.group-row:hover{ background: rgba(201,162,75,0.08); }
-  tr.group-row td{
-    font-weight: 600;
-    border-bottom: 1px solid var(--line);
-  }
-  tr.group-row .code-cell{
-    display:flex;
-    align-items:center;
-    gap:7px;
-  }
+  tr.group-row td{ font-weight: 600; }
+  tr.group-row .code-cell{ display:flex; align-items:center; gap:7px; }
   .toggle-chevron{
-    display:inline-block;
-    color: var(--gold);
-    font-size: 10px;
-    transition: transform .15s;
-    width: 10px;
+    display:inline-block; color: var(--gold); font-size: 10px;
+    transition: transform .15s; width: 10px;
   }
   tr.group-row.collapsed .toggle-chevron{ transform: rotate(-90deg); }
   .muted-cell{ color: var(--muted); }
-  tr.detail-row td{
-    font-weight: 400;
-    color: var(--muted);
-  }
-  tr.detail-row .code-cell{
-    padding-left: 26px;
-    color: var(--muted);
-    font-weight: 400;
-  }
-  tr.detail-row td.left:nth-child(2){ color: var(--muted); }
-  tr.detail-row .cur-price-input,
+  tr.detail-row td{ color: var(--muted); font-weight: 400; }
+  tr.detail-row .code-cell{ padding-left: 26px; color: var(--muted); font-weight: 400; }
   tr.detail-row td:not(.left){ color: var(--text); }
-  tr.detail-row .gain-text,
-  tr.detail-row .loss-text{ font-weight: 500; }
   tr.detail-row.hidden-row{ display:none; }
-  .empty-row td{
-    text-align:center;
-    color: var(--muted);
-    font-family: var(--font-body);
-    padding: 26px 14px;
+
+  .price-cell{ display:flex; align-items:center; justify-content:flex-end; gap:5px; }
+  .cur-price-input{
+    width: 76px; background: transparent; border: none;
+    border-bottom: 1px dashed var(--line); color: var(--text);
+    font-family: var(--font-mono); font-size: 13px; text-align: right; padding: 2px 4px;
   }
-  .table-scroll{ overflow-x:auto; }
-  @media (max-width: 720px){
+  .cur-price-input:focus{ outline:none; border-bottom: 1px solid var(--gold-dim); }
+  .cur-price-input.auto{ color: var(--muted); }
+  .src-chip{
+    font-size: 9px; font-family: var(--font-mono); border-radius: 3px;
+    padding: 1px 4px; border: 1px solid var(--line); color: var(--muted);
+  }
+  .src-chip.manual{ color: var(--gold); border-color: var(--gold-dim); }
+  .reset-btn{
+    background:none; border:none; color: var(--muted); cursor:pointer;
+    font-size: 12px; padding: 0 2px; line-height:1;
+  }
+  .reset-btn:hover{ color: var(--gold); }
+  .del-btn{
+    background:none; border:none; color: var(--muted); cursor:pointer;
+    font-size: 15px; padding: 2px 6px; line-height:1;
+  }
+  .del-btn:hover{ color: var(--loss); }
+  .empty-row td{
+    text-align:center; color: var(--muted); font-family: var(--font-body);
+    padding: 26px 14px; white-space: normal;
+  }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling: touch; }
+
+  @media (max-width: 760px){
+    .wrap{ padding: 20px 14px 60px; }
     .form-grid{ grid-template-columns: 1fr 1fr; }
-    table{ font-size: 12px; }
+    .form-grid .add-btn{ grid-column: 1 / -1; width: 100%; }
+    .summary{ grid-template-columns: 1fr; }
+    .stat{ border-right: none; border-bottom: 1px solid var(--line); }
+    .stat:last-child{ border-bottom: none; }
+    .stat .value{ font-size: 21px; }
   }
 </style>
 </head>
@@ -327,7 +235,9 @@
 <div class="wrap">
   <div class="masthead">
     <h1><span class="dot"></span>持股帳本</h1>
-    <div class="date" id="todayDate"></div>
+    <div class="quote-status" id="quoteStatus">
+      <span class="badge">報價載入中</span>
+    </div>
   </div>
 
   <div class="summary">
@@ -350,36 +260,36 @@
     <div class="form-card">
       <div class="form-grid">
         <div class="field">
-          <label>股票代號</label>
-          <input type="text" id="inCode" placeholder="2330" maxlength="10">
+          <label for="inCode">股票代號</label>
+          <input type="text" id="inCode" placeholder="2330" maxlength="10" inputmode="numeric" autocomplete="off">
         </div>
-        <div class="field name-preview">
+        <div class="field">
           <label>名稱</label>
-          <div class="name-tag" id="namePreview">請輸入代號</div>
-        </div>
-        <div class="field" id="customNameField" style="display:none;">
-          <label>自訂名稱</label>
-          <input type="text" id="inCustomName" placeholder="輸入名稱">
+          <div class="name-tag unknown" id="namePreview">請輸入代號</div>
         </div>
         <div class="field">
-          <label>股數</label>
-          <input type="number" id="inShares" placeholder="1000" min="0">
+          <label for="inShares">股數</label>
+          <input type="number" id="inShares" placeholder="1000" min="0" inputmode="numeric">
         </div>
         <div class="field">
-          <label>買入價格</label>
-          <input type="number" id="inBuyPrice" placeholder="580.00" min="0" step="0.01">
+          <label for="inBuyPrice">買入價格</label>
+          <input type="number" id="inBuyPrice" placeholder="580.00" min="0" step="0.01" inputmode="decimal">
         </div>
-        <div>
-          <button class="add-btn" id="addBtn">+ 新增持股</button>
-        </div>
+        <button class="add-btn" id="addBtn">+ 新增持股</button>
       </div>
-      <div class="hint">目前價格新增後可於下方明細表直接編輯，用來即時計算收益。找不到代號的中文名稱時，可於「自訂名稱」欄位手動輸入。</div>
+      <div class="field" id="customNameField" style="display:none; margin-top:12px; max-width:240px;">
+        <label for="inCustomName">找不到這個代號，請自行輸入名稱</label>
+        <input type="text" id="inCustomName" placeholder="輸入名稱">
+      </div>
+      <div class="hint">
+        目前價格會自動套用最近一次的收盤價，每個交易日由排程更新。若要自行指定（例如盤中價或試算），直接在明細表的價格欄輸入即可，欄位會標記為「手動」；按旁邊的 ↺ 可以還原成自動報價。
+      </div>
     </div>
   </section>
 
   <section>
     <div class="section-title">持股明細</div>
-    <div class="hint" style="margin-bottom:10px;">每個代號上方為統整列（股數合計／總價金／收益金額／收益率），點擊可展開／收合底下各筆買入明細。</div>
+    <div class="hint" style="margin-top:0; margin-bottom:10px;">每個代號上方為統整列，點擊可展開或收合底下的各筆買入紀錄。</div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -395,64 +305,123 @@
             <th></th>
           </tr>
         </thead>
-        <tbody id="lotsBody">
-        </tbody>
+        <tbody id="lotsBody"></tbody>
       </table>
     </div>
   </section>
-
 </div>
 
 <script>
-const STOCK_NAMES = {
-  "2330":"台積電","2317":"鴻海","2454":"聯發科","2412":"中華電","2308":"台達電",
-  "2882":"國泰金","2881":"富邦金","1301":"台塑","1303":"南亞","2002":"中鋼",
-  "2891":"中信金","2886":"兆豐金","2884":"玉山金","2892":"第一金","5880":"合庫金",
-  "2880":"華南金","2885":"元大金","2887":"台新金","2890":"永豐金","2883":"開發金",
-  "3008":"大立光","2303":"聯電","2379":"瑞昱","2382":"廣達","2357":"華碩",
-  "2395":"研華","3711":"日月光投控","2409":"友達","2408":"南亞科","1216":"統一",
-  "1101":"台泥","1102":"亞泥","2207":"和泰車","9910":"豐泰","2201":"裕隆",
-  "2603":"長榮","2609":"陽明","2615":"萬海","2610":"華航","2618":"長榮航",
-  "1402":"遠東新","1326":"台化","6505":"台塑化","2912":"統一超","9904":"寶成",
-  "2801":"彰銀","5871":"中租-KY","4938":"和碩","3045":"台灣大","4904":"遠傳",
-  "2345":"智邦","3231":"緯創","2377":"微星","2376":"技嘉","6446":"藥華藥",
-  "3661":"世芯-KY","6415":"矽力*-KY","00878":"國泰永續高股息","0050":"元大台灣50",
-  "0056":"元大高股息","006208":"富邦台50","2354":"鴻準","2327":"國巨","3037":"欣興",
-  "6669":"緯穎","2382":"廣達","2360":"致茂","3406":"玉晶光","4966":"譜瑞-KY"
-};
+"use strict";
 
 const STORAGE_KEY = "lots";
+const PRICES_URL = "prices.json";
+
 let lots = [];
+let priceMap = {};          // code -> { name, close, change, market }
+let quoteMeta = null;       // { updatedAt, tradeDate, count }
 const collapsedCodes = new Set();
 
+/* ---------- 格式化 ---------- */
 function fmtMoney(n){
   const sign = n < 0 ? "-" : "";
   return sign + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
 }
 function fmtRate(n){
-  const sign = n > 0 ? "+" : "";
-  return sign + n.toFixed(2) + "%";
+  return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
 }
-function gainClass(n){
-  return n > 0 ? "gain-text" : (n < 0 ? "loss-text" : "");
-}
-function arrow(n){
-  return n > 0 ? "▲" : (n < 0 ? "▼" : "—");
+function gainClass(n){ return n > 0 ? "gain-text" : (n < 0 ? "loss-text" : ""); }
+function arrow(n){ return n > 0 ? "▲" : (n < 0 ? "▼" : "—"); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+  ));
 }
 
+/* ---------- 報價 ---------- */
+function lookupQuote(code){ return priceMap[code] || null; }
+
 function lookupName(code){
-  return STOCK_NAMES[code] || null;
+  const q = lookupQuote(code);
+  return q && q.name ? q.name : null;
+}
+
+/** 有效價格：手動覆寫優先，其次自動報價，都沒有就退回買入價 */
+function effectivePrice(lot){
+  if(lot.override !== null && lot.override !== undefined) return lot.override;
+  const q = lookupQuote(lot.code);
+  if(q && typeof q.close === "number") return q.close;
+  return lot.buyPrice;
+}
+function priceSource(lot){
+  if(lot.override !== null && lot.override !== undefined) return "manual";
+  const q = lookupQuote(lot.code);
+  return (q && typeof q.close === "number") ? "auto" : "none";
 }
 
 function computeLot(lot){
+  const price = effectivePrice(lot);
   const totalCost = lot.shares * lot.buyPrice;
-  const gain = (lot.curPrice - lot.buyPrice) * lot.shares;
-  const rate = lot.buyPrice > 0 ? (gain / totalCost) * 100 : 0;
-  return { totalCost, gain, rate };
+  const gain = (price - lot.buyPrice) * lot.shares;
+  const rate = totalCost > 0 ? (gain / totalCost) * 100 : 0;
+  return { price, totalCost, gain, rate };
 }
 
+async function loadPrices(){
+  const statusEl = document.getElementById("quoteStatus");
+  try{
+    const res = await fetch(PRICES_URL + "?t=" + Date.now(), { cache: "no-store" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    priceMap = data.prices || {};
+    quoteMeta = data;
+
+    if(data.tradeDate && data.count > 0){
+      statusEl.className = "quote-status";
+      statusEl.innerHTML =
+        `<span class="badge">收盤價 ${escapeHtml(data.tradeDate)}</span>` +
+        `<span>${data.count.toLocaleString("en-US")} 檔可自動報價</span>`;
+    } else {
+      statusEl.className = "quote-status stale";
+      statusEl.innerHTML = `<span class="badge">尚無報價</span><span>等待第一次排程更新</span>`;
+    }
+  }catch(err){
+    priceMap = {};
+    statusEl.className = "quote-status stale";
+    statusEl.innerHTML = `<span class="badge">報價無法載入</span><span>價格請手動輸入</span>`;
+  }
+}
+
+/* ---------- 儲存 ---------- */
+function migrate(list){
+  return list.map(l => {
+    if(Object.prototype.hasOwnProperty.call(l, "override")) return l;
+    // 舊資料只有 curPrice：與買入價不同才視為手動指定
+    const had = typeof l.curPrice === "number" && l.curPrice !== l.buyPrice;
+    const { curPrice, ...rest } = l;
+    return Object.assign(rest, { override: had ? curPrice : null });
+  });
+}
+
+function loadLots(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    lots = raw ? migrate(JSON.parse(raw)) : [];
+  }catch(e){
+    lots = [];
+  }
+}
+
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lots));
+  }catch(e){
+    console.error("儲存失敗", e);
+  }
+}
+
+/* ---------- 畫面 ---------- */
 function render(){
-  // summary
   let totalInvested = 0, totalGain = 0;
   lots.forEach(l => {
     const c = computeLot(l);
@@ -469,7 +438,6 @@ function render(){
   rateEl.innerHTML = fmtRate(totalRate) + ` <span class="arrow">${arrow(totalRate)}</span>`;
   rateEl.className = "value " + (totalRate > 0 ? "gain" : totalRate < 0 ? "loss" : "neutral");
 
-  // grouped table: 統整列 + 可展開明細列
   const body = document.getElementById("lotsBody");
   body.innerHTML = "";
 
@@ -479,7 +447,6 @@ function render(){
     return;
   }
 
-  // 依代號分組，保留原始出現順序
   const order = [];
   const groups = {};
   lots.forEach(l => {
@@ -488,79 +455,100 @@ function render(){
       order.push(l.code);
     }
     const c = computeLot(l);
-    groups[l.code].shares += l.shares;
-    groups[l.code].totalCost += c.totalCost;
-    groups[l.code].currentValue += l.curPrice * l.shares;
-    groups[l.code].lots.push(l);
+    const g = groups[l.code];
+    g.shares += l.shares;
+    g.totalCost += c.totalCost;
+    g.currentValue += c.price * l.shares;
+    g.lots.push(l);
+    const fresh = lookupName(l.code);
+    if(fresh) g.name = fresh;
   });
 
   order.forEach(code => {
     const g = groups[code];
     const gain = g.currentValue - g.totalCost;
     const rate = g.totalCost > 0 ? (gain / g.totalCost) * 100 : 0;
-    const isCollapsed = collapsedCodes.has(code);
+    const collapsed = collapsedCodes.has(code);
 
-    const groupTr = document.createElement("tr");
-    groupTr.className = "group-row" + (isCollapsed ? " collapsed" : "");
-    groupTr.dataset.code = code;
-    groupTr.innerHTML = `
-      <td class="left"><span class="code-cell"><span class="toggle-chevron">▾</span>${g.code}</span></td>
-      <td class="left">${g.name}</td>
+    const gTr = document.createElement("tr");
+    gTr.className = "group-row" + (collapsed ? " collapsed" : "");
+    gTr.innerHTML = `
+      <td class="left"><span class="code-cell"><span class="toggle-chevron">▾</span>${escapeHtml(g.code)}</span></td>
+      <td class="left">${escapeHtml(g.name)}</td>
       <td>${g.shares.toLocaleString("en-US")}</td>
       <td class="muted-cell">—</td>
       <td class="muted-cell">—</td>
       <td>${fmtMoney(g.totalCost)}</td>
       <td class="${gainClass(gain)}">${fmtMoney(gain)}</td>
       <td class="${gainClass(gain)}">${fmtRate(rate)}</td>
-      <td></td>
-    `;
-    groupTr.addEventListener("click", () => {
-      if(collapsedCodes.has(code)){ collapsedCodes.delete(code); }
-      else{ collapsedCodes.add(code); }
+      <td></td>`;
+    gTr.addEventListener("click", () => {
+      collapsedCodes.has(code) ? collapsedCodes.delete(code) : collapsedCodes.add(code);
       render();
     });
-    body.appendChild(groupTr);
+    body.appendChild(gTr);
 
     g.lots.forEach(l => {
       const c = computeLot(l);
+      const src = priceSource(l);
+      const chip = src === "manual"
+        ? `<span class="src-chip manual">手動</span><button class="reset-btn" data-reset="${l.id}" title="還原成自動報價">↺</button>`
+        : (src === "auto" ? `<span class="src-chip">自動</span>` : `<span class="src-chip">無報價</span>`);
+
       const tr = document.createElement("tr");
-      tr.className = "detail-row" + (isCollapsed ? " hidden-row" : "");
-      tr.dataset.code = code;
+      tr.className = "detail-row" + (collapsed ? " hidden-row" : "");
       tr.innerHTML = `
-        <td class="left"><span class="code-cell">${l.code}</span></td>
-        <td class="left">${l.name}</td>
+        <td class="left"><span class="code-cell">${escapeHtml(l.code)}</span></td>
+        <td class="left">${escapeHtml(l.name)}</td>
         <td>${l.shares.toLocaleString("en-US")}</td>
         <td>${l.buyPrice.toFixed(2)}</td>
-        <td><input class="cur-price-input" type="number" step="0.01" value="${l.curPrice}" data-id="${l.id}"></td>
+        <td>
+          <span class="price-cell">
+            <input class="cur-price-input ${src === "auto" ? "auto" : ""}" type="number" step="0.01"
+                   value="${c.price}" data-id="${l.id}" inputmode="decimal">
+            ${chip}
+          </span>
+        </td>
         <td>${fmtMoney(c.totalCost)}</td>
         <td class="${gainClass(c.gain)}">${fmtMoney(c.gain)}</td>
         <td class="${gainClass(c.gain)}">${fmtRate(c.rate)}</td>
-        <td><button class="del-btn" data-id="${l.id}" title="刪除">✕</button></td>
-      `;
+        <td><button class="del-btn" data-del="${l.id}" title="刪除這筆">✕</button></td>`;
       body.appendChild(tr);
     });
   });
 
-  // rebind current-price inputs & delete buttons
+  bindRowEvents();
+  buildTicker();
+}
+
+function findLot(id){ return lots.find(x => String(x.id) === String(id)); }
+
+function bindRowEvents(){
   document.querySelectorAll(".cur-price-input").forEach(inp => {
-    inp.addEventListener("click", (e) => e.stopPropagation());
-    inp.addEventListener("change", (e) => {
-      const id = e.target.dataset.id;
-      const val = parseFloat(e.target.value) || 0;
-      const lot = lots.find(x => String(x.id) === String(id));
-      if(lot){ lot.curPrice = val; save(); render(); }
+    inp.addEventListener("click", e => e.stopPropagation());
+    inp.addEventListener("change", e => {
+      const lot = findLot(e.target.dataset.id);
+      if(!lot) return;
+      const val = parseFloat(e.target.value);
+      lot.override = isNaN(val) ? null : val;
+      save(); render();
     });
   });
-  document.querySelectorAll(".del-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
+  document.querySelectorAll("[data-reset]").forEach(btn => {
+    btn.addEventListener("click", e => {
       e.stopPropagation();
-      const id = e.target.dataset.id;
+      const lot = findLot(e.currentTarget.dataset.reset);
+      if(lot){ lot.override = null; save(); render(); }
+    });
+  });
+  document.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const id = e.currentTarget.dataset.del;
       lots = lots.filter(x => String(x.id) !== String(id));
       save(); render();
     });
   });
-
-  buildTicker();
 }
 
 function buildTicker(){
@@ -569,44 +557,27 @@ function buildTicker(){
     track.innerHTML = `<span>尚無持股資料 — 於下方新增你的第一筆股票</span>`;
     return;
   }
-  const uniq = {};
-  lots.forEach(l => { uniq[l.code] = l.name; });
+  const seen = {};
+  lots.forEach(l => { if(!seen[l.code]) seen[l.code] = l.name; });
   let html = "";
-  Object.keys(uniq).forEach(code => {
-    const l = lots.filter(x => x.code === code);
-    const totalCost = l.reduce((s,x)=>s + x.shares*x.buyPrice, 0);
-    const curVal = l.reduce((s,x)=>s + x.shares*x.curPrice, 0);
-    const rate = totalCost > 0 ? ((curVal-totalCost)/totalCost*100) : 0;
-    html += `<span><span class="t-code">${code}</span> ${uniq[code]} ${fmtRate(rate)} ${arrow(rate)}</span>`;
+  Object.keys(seen).forEach(code => {
+    const rows = lots.filter(x => x.code === code);
+    const cost = rows.reduce((s,x) => s + x.shares * x.buyPrice, 0);
+    const val = rows.reduce((s,x) => s + x.shares * effectivePrice(x), 0);
+    const rate = cost > 0 ? ((val - cost) / cost * 100) : 0;
+    const name = lookupName(code) || seen[code];
+    html += `<span><span class="t-code">${escapeHtml(code)}</span> ${escapeHtml(name)} ${fmtRate(rate)} ${arrow(rate)}</span>`;
   });
-  track.innerHTML = html + html; // duplicate for seamless loop
+  track.innerHTML = html + html;
 }
 
-async function load(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){ lots = JSON.parse(raw); }
-  }catch(e){
-    lots = [];
-  }
-  render();
-}
-
-async function save(){
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(lots));
-  }catch(e){
-    console.error("儲存失敗", e);
-  }
-}
-
-// name preview logic
+/* ---------- 輸入表單 ---------- */
 const inCode = document.getElementById("inCode");
 const namePreview = document.getElementById("namePreview");
 const customField = document.getElementById("customNameField");
 const inCustomName = document.getElementById("inCustomName");
 
-inCode.addEventListener("input", () => {
+function updateNamePreview(){
   const code = inCode.value.trim();
   if(!code){
     namePreview.textContent = "請輸入代號";
@@ -614,33 +585,36 @@ inCode.addEventListener("input", () => {
     customField.style.display = "none";
     return;
   }
-  const name = lookupName(code);
-  if(name){
-    namePreview.textContent = name;
+  const q = lookupQuote(code);
+  if(q && q.name){
+    namePreview.innerHTML =
+      `${escapeHtml(q.name)}<span class="market-chip">${escapeHtml(q.market || "")}</span>` +
+      (typeof q.close === "number" ? `<span class="market-chip">收盤 ${q.close}</span>` : "");
     namePreview.className = "name-tag";
     customField.style.display = "none";
   } else {
-    namePreview.textContent = "找不到，請手動輸入";
+    namePreview.textContent = "查無此代號";
     namePreview.className = "name-tag unknown";
     customField.style.display = "";
   }
-});
+}
+inCode.addEventListener("input", updateNamePreview);
 
 document.getElementById("addBtn").addEventListener("click", () => {
   const code = inCode.value.trim();
   const shares = parseFloat(document.getElementById("inShares").value);
   const buyPrice = parseFloat(document.getElementById("inBuyPrice").value);
-  if(!code || !shares || !buyPrice){
+
+  if(!code || !shares || shares <= 0 || !buyPrice || buyPrice <= 0){
     alert("請完整輸入股票代號、股數與買入價格");
     return;
   }
-  let name = lookupName(code);
-  if(!name){
-    name = inCustomName.value.trim() || code;
-  }
+  const name = lookupName(code) || inCustomName.value.trim() || code;
+
   lots.push({
-    id: Date.now() + Math.random(),
-    code, name, shares, buyPrice, curPrice: buyPrice
+    id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+    code, name, shares, buyPrice,
+    override: null
   });
   save(); render();
 
@@ -648,14 +622,18 @@ document.getElementById("addBtn").addEventListener("click", () => {
   document.getElementById("inShares").value = "";
   document.getElementById("inBuyPrice").value = "";
   inCustomName.value = "";
-  namePreview.textContent = "請輸入代號";
-  namePreview.className = "name-tag unknown";
-  customField.style.display = "none";
+  updateNamePreview();
+  inCode.focus();
 });
 
-document.getElementById("todayDate").textContent = new Date().toLocaleDateString("zh-TW", { year:"numeric", month:"2-digit", day:"2-digit" });
-
-load();
+/* ---------- 啟動 ---------- */
+(async function init(){
+  loadLots();
+  render();              // 先用既有資料畫出畫面
+  await loadPrices();    // 報價回來後再套用
+  render();
+  updateNamePreview();
+})();
 </script>
 </body>
 </html>

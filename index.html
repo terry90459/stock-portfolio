@@ -3,645 +3,877 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>持股帳本</title>
-<meta name="theme-color" content="#10141c">
+<title>持股存摺</title>
+<meta name="theme-color" content="#E8EEE7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#10141c; --panel:#1a2130; --panel-alt:#212939; --line:#2e3648;
-    --text:#eceff4; --muted:#8b95a8; --gold:#c9a24b; --gold-dim:#8a7238;
-    --gain:#4ade9c; --loss:#ff6b6b; --div:#6fb3d9;
-    --font-display:'Space Grotesk','Noto Sans TC',sans-serif;
-    --font-body:'Noto Sans TC',-apple-system,'PingFang TC',sans-serif;
-    --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+    /* 防偽紙、印刷墨、台股紅漲綠跌 */
+    --paper:      #e8eee7;
+    --paper-lit:  #f2f6f1;
+    --paper-deep: #dde5dc;
+    --rule:       #c2cfc3;
+    --rule-fine:  #d6dfd6;
+    --ink:        #1b2620;
+    --ink-soft:   #63736a;
+    --rise:       #c0392b;
+    --fall:       #1b6b4c;
+    --stamp:      #2e4a7d;
+
+    --serif: 'Noto Serif TC', serif;
+    --sans:  'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
+    --mono:  'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   }
-  *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body);
-        min-height:100vh; -webkit-text-size-adjust:100%; }
+  *{ box-sizing: border-box; }
+  html{ -webkit-text-size-adjust: 100%; }
+  body{
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
 
-  .ticker-wrap{ overflow:hidden; white-space:nowrap; background:var(--panel);
-                border-bottom:1px solid var(--line); padding:7px 0; }
-  .ticker-track{ display:inline-block; white-space:nowrap; animation:scroll-left 32s linear infinite;
-                 font-family:var(--font-mono); font-size:12px; letter-spacing:.03em; color:var(--muted); }
-  .ticker-track span{ margin-right:34px; }
-  .ticker-track .t-code{ color:var(--gold); font-weight:600; }
-  @keyframes scroll-left{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
-  @media (prefers-reduced-motion:reduce){ .ticker-track{ animation:none; } }
+  .sheet{
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px 96px;
+  }
 
-  .wrap{ max-width:1140px; margin:0 auto; padding:28px 20px 80px; }
-  .masthead{ display:flex; align-items:baseline; justify-content:space-between; gap:12px;
-             flex-wrap:wrap; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:16px; }
-  .masthead h1{ font-family:var(--font-display); font-size:26px; font-weight:700; margin:0; }
-  .masthead .dot{ display:inline-block; width:7px; height:7px; border-radius:50%;
-                  background:var(--gain); margin-right:9px; box-shadow:0 0 0 3px rgba(74,222,156,.15); }
-  .quote-status{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted);
-                 display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .quote-status .badge{ border:1px solid var(--line); border-radius:4px; padding:2px 7px; color:var(--gold); }
-  .quote-status.stale .badge{ color:var(--muted); }
+  /* ── 抬頭 ───────────────────────────── */
+  .masthead{
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 34px 0 14px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .masthead h1{
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 30px;
+    letter-spacing: .14em;
+    margin: 0;
+    line-height: 1;
+  }
+  .masthead h1 .en{
+    display: block;
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 10.5px;
+    letter-spacing: .3em;
+    color: var(--ink-soft);
+    margin-top: 9px;
+  }
+  .quote-state{
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: right;
+    line-height: 1.7;
+  }
+  .quote-state b{
+    display: block;
+    color: var(--ink);
+    font-weight: 500;
+    letter-spacing: .04em;
+  }
+  .quote-state.off b{ color: var(--ink-soft); }
 
-  .summary{ display:grid; grid-template-columns:repeat(4,1fr); background:var(--panel);
-            border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:14px; }
-  .stat{ padding:16px 18px; border-right:1px solid var(--line); }
-  .stat:last-child{ border-right:none; }
-  .stat .label{ font-size:11.5px; color:var(--muted); letter-spacing:.04em; margin-bottom:8px; }
-  .stat .value{ font-family:var(--font-mono); font-size:22px; font-weight:600;
-                display:flex; align-items:center; gap:6px; }
-  .stat .value.gain{ color:var(--gain); } .stat .value.loss{ color:var(--loss); }
-  .stat .value.neutral{ color:var(--text); } .stat .value.div{ color:var(--div); }
-  .arrow{ font-size:14px; }
+  /* ── 結存（蓋章式總覽） ─────────────── */
+  .balance{
+    border: 1px solid var(--rule);
+    border-top: none;
+    background: var(--paper-lit);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.4fr;
+  }
+  .cell{
+    padding: 18px 20px 16px;
+    border-right: 1px solid var(--rule-fine);
+  }
+  .cell:last-child{ border-right: none; }
+  .cell .k{
+    font-size: 11px;
+    letter-spacing: .16em;
+    color: var(--ink-soft);
+    margin-bottom: 7px;
+  }
+  .cell .v{
+    font-family: var(--mono);
+    font-size: 23px;
+    font-weight: 500;
+    letter-spacing: -.01em;
+  }
+  .cell.total{
+    background: var(--paper-deep);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .cell.total .v{ font-size: 30px; }
+  .cell.total .pct{
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 500;
+    padding: 1px 9px 2px;
+    border: 1px solid currentColor;
+  }
+  .rise{ color: var(--rise); }
+  .fall{ color: var(--fall); }
+  .flat{ color: var(--ink); }
 
-  .mode-bar{ display:flex; align-items:center; gap:10px; margin-bottom:26px;
-             font-size:12px; color:var(--muted); flex-wrap:wrap; }
-  .toggle{ display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
-  .toggle button{ background:transparent; border:none; color:var(--muted); font-family:var(--font-body);
-                  font-size:12px; padding:6px 14px; cursor:pointer; transition:background .15s,color .15s; }
-  .toggle button.active{ background:var(--gold); color:#1a1406; font-weight:700; }
-  .toggle button:focus-visible{ outline:2px solid var(--gold); outline-offset:-2px; }
+  /* ── 計息切換 ───────────────────────── */
+  .basis{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 13px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .seg{ display: inline-flex; border: 1px solid var(--ink); }
+  .seg button{
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--ink);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: var(--ink);
+    padding: 5px 15px;
+    cursor: pointer;
+  }
+  .seg button:last-child{ border-right: none; }
+  .seg button[aria-pressed="true"]{ background: var(--ink); color: var(--paper); }
+  button:focus-visible, input:focus-visible{
+    outline: 2px solid var(--stamp);
+    outline-offset: 1px;
+  }
 
-  section{ margin-bottom:30px; }
-  .section-title{ font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--gold);
-                  margin-bottom:12px; display:flex; align-items:center; gap:8px; }
-  .section-title::before{ content:""; width:3px; height:14px; background:var(--gold); display:inline-block; }
+  /* ── 區段標題 ───────────────────────── */
+  .band{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 40px 0 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .band h2{
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: .16em;
+    margin: 0;
+  }
+  .band .aside{ font-size: 12px; color: var(--ink-soft); }
 
-  .form-card{ background:var(--panel-alt); border:1px solid var(--line); border-radius:10px; padding:18px; }
-  .form-grid{ display:grid; grid-template-columns:105px 1fr 95px 110px 140px auto; gap:10px; align-items:end; }
-  .field label{ display:block; font-size:11px; color:var(--muted); margin-bottom:6px; letter-spacing:.03em; }
-  .field input{ width:100%; background:var(--bg); border:1px solid var(--line); border-radius:6px;
-                color:var(--text); font-family:var(--font-mono); font-size:15px; padding:9px 10px;
-                transition:border-color .15s; }
-  .field input:focus{ outline:none; border-color:var(--gold-dim); }
-  .field input[type=date]{ font-size:13px; color-scheme:dark; }
-  .name-tag{ height:40px; display:flex; align-items:center; gap:8px; font-size:14px; padding:0 2px; }
-  .name-tag.unknown{ color:var(--muted); font-style:italic; }
-  .market-chip{ font-family:var(--font-mono); font-size:10px; color:var(--muted);
-                border:1px solid var(--line); border-radius:3px; padding:1px 5px; }
-  .add-btn{ background:var(--gold); color:#1a1406; border:none; border-radius:6px; padding:0 18px;
-            font-family:var(--font-body); font-weight:700; font-size:13px; cursor:pointer;
-            white-space:nowrap; height:40px; transition:filter .15s; }
-  .add-btn:hover{ filter:brightness(1.1); }
-  .add-btn:focus-visible,.del-btn:focus-visible,.reset-btn:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
-  .hint{ font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.65; }
+  /* ── 存摺表格 ───────────────────────── */
+  .scroll{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table{ width: 100%; border-collapse: collapse; }
+  thead th{
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    color: var(--ink-soft);
+    text-align: right;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  thead th.l{ text-align: left; }
+  tbody td{
+    font-family: var(--mono);
+    font-size: 13.5px;
+    text-align: right;
+    padding: 10px 11px;
+    border-bottom: 1px solid var(--rule-fine);
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  tbody td.l{ text-align: left; font-family: var(--sans); }
 
-  table{ width:100%; border-collapse:collapse; background:var(--panel);
-         border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-  thead th{ text-align:right; font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.03em;
-            padding:10px 12px; border-bottom:1px solid var(--line); background:var(--panel-alt); white-space:nowrap; }
-  thead th.left{ text-align:left; }
-  tbody td{ text-align:right; padding:11px 12px; font-family:var(--font-mono); font-size:13px;
-            border-bottom:1px solid var(--line); white-space:nowrap; }
-  tbody tr:last-child td{ border-bottom:none; }
-  tbody td.left{ text-align:left; font-family:var(--font-body); }
-  .code-cell{ color:var(--gold); font-weight:600; }
-  .gain-text{ color:var(--gain); } .loss-text{ color:var(--loss); } .div-text{ color:var(--div); }
+  tr.entry{ background: var(--paper-lit); cursor: pointer; }
+  tr.entry:hover{ background: #eaf0e8; }
+  tr.entry td{
+    border-bottom: 1px solid var(--rule);
+    font-weight: 500;
+  }
+  tr.entry .sym{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-weight: 500;
+    letter-spacing: .02em;
+  }
+  .caret{
+    color: var(--ink-soft);
+    font-size: 9px;
+    width: 8px;
+    display: inline-block;
+    transition: transform .16s ease;
+  }
+  tr.entry.shut .caret{ transform: rotate(-90deg); }
+  .nil{ color: var(--rule); }
 
-  tr.group-row{ background:var(--panel-alt); cursor:pointer; }
-  tr.group-row:hover{ background:rgba(201,162,75,.08); }
-  tr.group-row td{ font-weight:600; }
-  tr.group-row .code-cell{ display:flex; align-items:center; gap:7px; }
-  .toggle-chevron{ display:inline-block; color:var(--gold); font-size:10px;
-                   transition:transform .15s; width:10px; }
-  tr.group-row.collapsed .toggle-chevron{ transform:rotate(-90deg); }
-  .muted-cell{ color:var(--muted); }
-  tr.detail-row td{ color:var(--text); font-weight:400; }
-  tr.detail-row .code-cell{ padding-left:26px; color:var(--muted); font-weight:400; }
-  tr.detail-row .name-sub{ display:block; font-size:10.5px; color:var(--muted);
-                           font-family:var(--font-mono); margin-top:2px; }
-  tr.detail-row.hidden-row{ display:none; }
+  tr.line td{ color: var(--ink); }
+  tr.line .sym{ padding-left: 24px; color: var(--ink-soft); font-family: var(--mono); }
+  tr.line .sub{
+    display: block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    letter-spacing: .02em;
+    margin-top: 1px;
+  }
+  tr.line.shut{ display: none; }
 
-  .cell-flex{ display:flex; align-items:center; justify-content:flex-end; gap:5px; }
-  .edit-input{ width:74px; background:transparent; border:none; border-bottom:1px dashed var(--line);
-               color:var(--text); font-family:var(--font-mono); font-size:13px; text-align:right; padding:2px 4px; }
-  .edit-input:focus{ outline:none; border-bottom:1px solid var(--gold-dim); }
-  .edit-input.auto{ color:var(--muted); }
-  .src-chip{ font-size:9px; font-family:var(--font-mono); border-radius:3px; padding:1px 4px;
-             border:1px solid var(--line); color:var(--muted); }
-  .src-chip.manual{ color:var(--gold); border-color:var(--gold-dim); }
-  .reset-btn{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:0 2px; }
-  .reset-btn:hover{ color:var(--gold); }
-  .del-btn{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 6px; }
-  .del-btn:hover{ color:var(--loss); }
-  .empty-row td{ text-align:center; color:var(--muted); font-family:var(--font-body);
-                 padding:26px 14px; white-space:normal; }
-  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  /* 簽名：報酬率下方的刻度墨條 */
+  .gauge{ display: inline-block; text-align: right; }
+  .gauge .num{ display: block; }
+  .gauge .rule{
+    display: block;
+    height: 2px;
+    margin-top: 4px;
+    margin-left: auto;
+    background: currentColor;
+    opacity: .55;
+    min-width: 1px;
+    transition: width .5s cubic-bezier(.2,.7,.3,1);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .gauge .rule{ transition: none; }
+  }
 
-  @media (max-width:820px){
-    .wrap{ padding:20px 14px 60px; }
-    .form-grid{ grid-template-columns:1fr 1fr; }
-    .form-grid .add-btn{ grid-column:1/-1; width:100%; }
-    .summary{ grid-template-columns:1fr 1fr; }
-    .stat{ border-bottom:1px solid var(--line); }
-    .stat:nth-child(2n){ border-right:none; }
-    .stat .value{ font-size:19px; }
+  .pair{ display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; }
+  .num-in{
+    width: 74px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--ink);
+    text-align: right;
+    padding: 1px 3px;
+  }
+  .num-in:focus{ outline: none; border-bottom: 1.5px solid var(--stamp); }
+  .num-in.derived{ color: var(--ink-soft); }
+  .tag{
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .05em;
+    color: var(--ink-soft);
+    border: 1px solid var(--rule);
+    padding: 0 4px;
+    line-height: 15px;
+  }
+  .tag.own{ color: var(--stamp); border-color: var(--stamp); }
+  .ghost{
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-soft); font-size: 12px; padding: 0 3px; line-height: 1;
+  }
+  .ghost:hover{ color: var(--stamp); }
+  .ghost.drop:hover{ color: var(--rise); }
+  .pending{ display: block; font-size: 10.5px; color: var(--stamp); margin-top: 2px; }
+
+  .blank td{
+    text-align: center;
+    font-family: var(--sans);
+    color: var(--ink-soft);
+    padding: 44px 16px;
+    white-space: normal;
+    border-bottom: 1px solid var(--rule-fine);
+  }
+  .blank strong{ display: block; color: var(--ink); font-weight: 500; margin-bottom: 4px; }
+
+  /* ── 登錄表單 ───────────────────────── */
+  .entry-form{
+    border: 1px solid var(--rule);
+    border-top: none;
+    background: var(--paper-lit);
+    padding: 20px;
+  }
+  .fields{
+    display: grid;
+    grid-template-columns: 108px minmax(150px,1fr) 96px 106px 148px auto;
+    gap: 14px;
+    align-items: end;
+  }
+  .f label{
+    display: block;
+    font-size: 11px;
+    letter-spacing: .1em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .f input{
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--ink);
+    padding: 6px 2px;
+  }
+  .f input::placeholder{ color: var(--rule); }
+  .f input:focus{ outline: none; border-bottom: 2px solid var(--stamp); padding-bottom: 5px; }
+  .f input[type=date]{ font-size: 13.5px; }
+  .resolved{
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--sans);
+    font-size: 15px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 6px;
+  }
+  .resolved.none{ color: var(--ink-soft); }
+  .commit{
+    appearance: none;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: .08em;
+    padding: 10px 22px;
+    cursor: pointer;
+  }
+  .commit:hover{ background: var(--stamp); }
+  .note{
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.75;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule-fine);
+  }
+  .alert{
+    font-size: 12.5px;
+    color: var(--rise);
+    margin-top: 12px;
+    min-height: 19px;
+  }
+
+  .colophon{
+    margin-top: 44px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 860px){
+    .sheet{ padding: 0 14px 72px; }
+    .masthead{ padding-top: 24px; }
+    .masthead h1{ font-size: 25px; }
+    .balance{ grid-template-columns: 1fr 1fr; }
+    .cell.total{ grid-column: 1 / -1; border-top: 1px solid var(--rule-fine); }
+    .cell:nth-child(2){ border-right: none; }
+    .fields{ grid-template-columns: 1fr 1fr; }
+    .fields .f.wide, .fields .commit{ grid-column: 1 / -1; }
+    .commit{ width: 100%; }
+    .hide-sm{ display: none; }
   }
 </style>
 </head>
 <body>
+<div class="sheet">
 
-<div class="ticker-wrap"><div class="ticker-track" id="tickerTrack"></div></div>
+  <header class="masthead">
+    <h1>持股存摺<span class="en">HOLDINGS PASSBOOK</span></h1>
+    <div class="quote-state" id="state"><b>載入中</b></div>
+  </header>
 
-<div class="wrap">
-  <div class="masthead">
-    <h1><span class="dot"></span>持股帳本</h1>
-    <div class="quote-status" id="quoteStatus"><span class="badge">報價載入中</span></div>
-  </div>
+  <section class="balance">
+    <div class="cell">
+      <div class="k">投入本金</div>
+      <div class="v flat" id="vCost">$0</div>
+    </div>
+    <div class="cell">
+      <div class="k">已領配息</div>
+      <div class="v flat" id="vDiv">$0</div>
+    </div>
+    <div class="cell total">
+      <div style="flex:1 1 auto">
+        <div class="k" id="kGain">損益 · 含息</div>
+        <div class="v flat" id="vGain">$0</div>
+      </div>
+      <div class="pct flat" id="vRate">0.00%</div>
+    </div>
+  </section>
 
-  <div class="summary">
-    <div class="stat">
-      <div class="label">總投入金額</div>
-      <div class="value neutral" id="sumInvested">$0</div>
-    </div>
-    <div class="stat">
-      <div class="label">累計配息</div>
-      <div class="value div" id="sumDividend">$0</div>
-    </div>
-    <div class="stat">
-      <div class="label" id="labelGain">總收益金額</div>
-      <div class="value neutral" id="sumGain">$0</div>
-    </div>
-    <div class="stat">
-      <div class="label" id="labelRate">總收益率</div>
-      <div class="value neutral" id="sumRate">0.00%</div>
-    </div>
-  </div>
-
-  <div class="mode-bar">
-    <span>報酬計算方式</span>
-    <span class="toggle">
-      <button id="modeTotal" class="active">含息</button>
-      <button id="modePrice">只算價差</button>
+  <div class="basis">
+    <span class="seg" role="group" aria-label="報酬計算基準">
+      <button id="bTotal" aria-pressed="true">含息</button>
+      <button id="bPrice" aria-pressed="false">只看價差</button>
     </span>
-    <span id="modeNote">收益金額與收益率已計入配息</span>
+    <span id="basisNote">配息已計入損益</span>
   </div>
 
-  <section>
-    <div class="section-title">新增持股</div>
-    <div class="form-card">
-      <div class="form-grid">
-        <div class="field">
-          <label for="inCode">股票代號</label>
-          <input type="text" id="inCode" placeholder="2330" maxlength="10" inputmode="numeric" autocomplete="off">
-        </div>
-        <div class="field">
-          <label>名稱</label>
-          <div class="name-tag unknown" id="namePreview">請輸入代號</div>
-        </div>
-        <div class="field">
-          <label for="inShares">股數</label>
-          <input type="number" id="inShares" placeholder="1000" min="0" inputmode="numeric">
-        </div>
-        <div class="field">
-          <label for="inBuyPrice">買入價格</label>
-          <input type="number" id="inBuyPrice" placeholder="580.00" min="0" step="0.01" inputmode="decimal">
-        </div>
-        <div class="field">
-          <label for="inBuyDate">買入日期</label>
-          <input type="date" id="inBuyDate">
-        </div>
-        <button class="add-btn" id="addBtn">+ 新增持股</button>
+  <div class="band">
+    <h2>持股明細</h2>
+    <span class="aside">點代號展開該檔的每一筆買進</span>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="l">代號</th>
+          <th class="l">名稱</th>
+          <th>股數</th>
+          <th class="hide-sm">買進價</th>
+          <th>現價</th>
+          <th class="hide-sm">成本</th>
+          <th>配息</th>
+          <th>損益</th>
+          <th>報酬率</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="book"></tbody>
+    </table>
+  </div>
+
+  <div class="band"><h2>登錄一筆買進</h2></div>
+
+  <section class="entry-form">
+    <div class="fields">
+      <div class="f">
+        <label for="fCode">代號</label>
+        <input id="fCode" type="text" maxlength="10" placeholder="2330" inputmode="numeric" autocomplete="off">
       </div>
-      <div class="field" id="customNameField" style="display:none; margin-top:12px; max-width:240px;">
-        <label for="inCustomName">找不到這個代號，請自行輸入名稱</label>
-        <input type="text" id="inCustomName" placeholder="輸入名稱">
+      <div class="f">
+        <label>名稱</label>
+        <div class="resolved none" id="fName">輸入代號後自動帶出</div>
       </div>
-      <div class="hint">
-        買入日期用來判斷哪幾次除息你有領到，留空的話配息只能手動填。目前價格與累計配息都會自動帶入，
-        直接在表格輸入即可覆寫成手動值，按 ↺ 還原自動計算。
+      <div class="f">
+        <label for="fShares">股數</label>
+        <input id="fShares" type="number" min="0" placeholder="1000" inputmode="numeric">
+      </div>
+      <div class="f">
+        <label for="fPrice">買進價</label>
+        <input id="fPrice" type="number" min="0" step="0.01" placeholder="580.00" inputmode="decimal">
+      </div>
+      <div class="f">
+        <label for="fDate">買進日</label>
+        <input id="fDate" type="date">
+      </div>
+      <button class="commit" id="fAdd">登錄</button>
+      <div class="f wide" id="fManualWrap" style="display:none">
+        <label for="fManual">查無此代號，請自行填寫名稱</label>
+        <input id="fManual" type="text" placeholder="例如 元大台灣50">
       </div>
     </div>
+    <div class="alert" id="fAlert"></div>
+    <p class="note">
+      買進日決定哪幾次除息你有領到，留空則配息只能自行填寫。現價與配息都會自動帶入，
+      直接在表格覆寫即為手動值，按 ↺ 還原成自動。台股慣例紅漲綠跌。
+    </p>
   </section>
 
-  <section>
-    <div class="section-title">持股明細</div>
-    <div class="hint" style="margin-top:0; margin-bottom:10px;">每個代號上方為統整列，點擊可展開或收合底下的各筆買入紀錄。</div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th class="left">代號</th>
-            <th class="left">名稱</th>
-            <th>股數</th>
-            <th>買入價格</th>
-            <th>目前價格</th>
-            <th>總價金</th>
-            <th>累計配息</th>
-            <th>收益金額</th>
-            <th>收益率</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="lotsBody"></tbody>
-      </table>
-    </div>
-  </section>
+  <footer class="colophon">
+    <span>資料存於本機瀏覽器，不會離開這台裝置</span>
+    <span id="stampTime"></span>
+  </footer>
 </div>
 
 <script>
 "use strict";
 
-const STORAGE_KEY = "lots";
-const MODE_KEY = "returnMode";
-const PRICES_URL = "prices.json";
-const DIVIDENDS_URL = "dividends.json";
+const KEY_LOTS = "lots";
+const KEY_BASIS = "returnMode";
+const URL_PRICES = "prices.json";
+const URL_DIVS = "dividends.json";
 
 let lots = [];
-let priceMap = {};       // code -> {name, close, change, market}
-let divEvents = [];      // [{code, name, exDate, cash, stock}]
-let divByCode = {};      // code -> [events]
-let includeDividend = true;
-const collapsedCodes = new Set();
+let quotes = {};
+let divsByCode = {};
+let withDividend = true;
+let firstPaint = true;
+const shut = new Set();
 
-/* ---------- 格式化 ---------- */
-const fmtMoney = n => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
-const fmtRate  = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
-const gainClass = n => n > 0 ? "gain-text" : (n < 0 ? "loss-text" : "");
-const arrow = n => n > 0 ? "▲" : (n < 0 ? "▼" : "—");
-const escapeHtml = s => String(s).replace(/[&<>"']/g,
-  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-/** 以台北時區取得今天日期，格式 YYYY-MM-DD */
-function todayISO(){
-  const d = new Date(Date.now() + 8 * 3600 * 1000);
-  return d.toISOString().slice(0, 10);
+/* ── 工具 ───────────────────────────── */
+const money = n => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+const pct = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+/* 台股：漲紅跌綠 */
+const tone = n => n > 0 ? "rise" : (n < 0 ? "fall" : "flat");
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+function today(){
+  return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
-/* ---------- 報價與配息 ---------- */
-const lookupQuote = code => priceMap[code] || null;
-const lookupName  = code => { const q = lookupQuote(code); return q && q.name ? q.name : null; };
+/* ── 報價與配息 ─────────────────────── */
+const quoteOf = c => quotes[c] || null;
+const nameOf = c => { const q = quoteOf(c); return q && q.name ? q.name : null; };
 
-function effectivePrice(lot){
+function priceOf(lot){
   if(lot.override !== null && lot.override !== undefined) return lot.override;
-  const q = lookupQuote(lot.code);
-  if(q && typeof q.close === "number") return q.close;
-  return lot.buyPrice;
+  const q = quoteOf(lot.code);
+  return (q && typeof q.close === "number") ? q.close : lot.buyPrice;
 }
-function priceSource(lot){
-  if(lot.override !== null && lot.override !== undefined) return "manual";
-  const q = lookupQuote(lot.code);
+function priceKind(lot){
+  if(lot.override !== null && lot.override !== undefined) return "own";
+  const q = quoteOf(lot.code);
   return (q && typeof q.close === "number") ? "auto" : "none";
 }
 
-/** 自動配息：除息日需在買入日當天或之後，且已經過了（預告表含未來日期，不能先算） */
-function autoDividend(lot){
+/** 除息日需已過且不早於買進日；預告表含未來日期，不能先計入 */
+function divEarned(lot){
   if(!lot.buyDate) return 0;
-  const events = divByCode[lot.code];
-  if(!events) return 0;
-  const today = todayISO();
-  return events.reduce((sum, ev) => {
-    if(ev.cash > 0 && ev.exDate >= lot.buyDate && ev.exDate <= today){
-      return sum + ev.cash * lot.shares;
-    }
-    return sum;
-  }, 0);
+  const evs = divsByCode[lot.code];
+  if(!evs) return 0;
+  const t = today();
+  return evs.reduce((s, e) =>
+    (e.cash > 0 && e.exDate >= lot.buyDate && e.exDate <= t) ? s + e.cash * lot.shares : s, 0);
 }
-
-/** 已公告但還沒到除息日的金額，只做提示用，不計入收益 */
-function upcomingDividend(lot){
+/** 已公告但尚未除息，僅供提示 */
+function divPending(lot){
   if(!lot.buyDate) return 0;
-  const events = divByCode[lot.code];
-  if(!events) return 0;
-  const today = todayISO();
-  return events.reduce((sum, ev) => {
-    if(ev.cash > 0 && ev.exDate > today) return sum + ev.cash * lot.shares;
-    return sum;
-  }, 0);
+  const evs = divsByCode[lot.code];
+  if(!evs) return 0;
+  const t = today();
+  return evs.reduce((s, e) => (e.cash > 0 && e.exDate > t) ? s + e.cash * lot.shares : s, 0);
 }
-function effectiveDividend(lot){
-  if(lot.dividend !== null && lot.dividend !== undefined) return lot.dividend;
-  return autoDividend(lot);
+function divOf(lot){
+  return (lot.dividend !== null && lot.dividend !== undefined) ? lot.dividend : divEarned(lot);
 }
-function dividendSource(lot){
-  if(lot.dividend !== null && lot.dividend !== undefined) return "manual";
-  if(!lot.buyDate) return "none";
-  return autoDividend(lot) > 0 ? "auto" : "empty";
+function divKind(lot){
+  if(lot.dividend !== null && lot.dividend !== undefined) return "own";
+  if(!lot.buyDate) return "nodate";
+  return divEarned(lot) > 0 ? "auto" : "empty";
 }
 
-function computeLot(lot){
-  const price = effectivePrice(lot);
-  const totalCost = lot.shares * lot.buyPrice;
-  const priceGain = (price - lot.buyPrice) * lot.shares;
-  const dividend = effectiveDividend(lot);
-  const gain = includeDividend ? priceGain + dividend : priceGain;
-  const rate = totalCost > 0 ? (gain / totalCost) * 100 : 0;
-  return { price, totalCost, priceGain, dividend, gain, rate };
+function calc(lot){
+  const price = priceOf(lot);
+  const cost = lot.shares * lot.buyPrice;
+  const spread = (price - lot.buyPrice) * lot.shares;
+  const dividend = divOf(lot);
+  const gain = withDividend ? spread + dividend : spread;
+  return { price, cost, spread, dividend, gain, rate: cost > 0 ? gain / cost * 100 : 0 };
 }
 
-/* ---------- 載入外部資料 ---------- */
-async function loadJson(url){
-  const res = await fetch(url + "?t=" + Date.now(), { cache: "no-store" });
-  if(!res.ok) throw new Error("HTTP " + res.status);
-  return res.json();
+/* ── 載入 ───────────────────────────── */
+async function grab(url){
+  const r = await fetch(url + "?t=" + Date.now(), { cache: "no-store" });
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
 }
 
-async function loadPrices(){
-  const el = document.getElementById("quoteStatus");
-  let priceOk = false, priceInfo = "", divInfo = "";
+async function loadFeeds(){
+  const el = document.getElementById("state");
+  let ok = false, head = "", tail = "";
 
   try{
-    const data = await loadJson(PRICES_URL);
-    priceMap = data.prices || {};
-    if(data.tradeDate && data.count > 0){
-      priceOk = true;
-      priceInfo = `<span class="badge">收盤價 ${escapeHtml(data.tradeDate)}</span>` +
-                  `<span>${data.count.toLocaleString("en-US")} 檔可自動報價</span>`;
+    const d = await grab(URL_PRICES);
+    quotes = d.prices || {};
+    if(d.tradeDate && d.count > 0){
+      ok = true;
+      head = `收盤 ${esc(d.tradeDate)}`;
+      tail = `${d.count.toLocaleString("en-US")} 檔自動報價`;
     } else {
-      priceInfo = `<span class="badge">尚無報價</span><span>等待第一次排程更新</span>`;
+      head = "尚無報價";
+      tail = "等第一次排程更新";
     }
   }catch(e){
-    priceMap = {};
-    priceInfo = `<span class="badge">報價無法載入</span><span>價格請手動輸入</span>`;
+    quotes = {};
+    head = "報價讀不到";
+    tail = "現價請自行填寫";
   }
 
   try{
-    const data = await loadJson(DIVIDENDS_URL);
-    divEvents = data.events || [];
-    divByCode = {};
-    divEvents.forEach(ev => {
-      (divByCode[ev.code] = divByCode[ev.code] || []).push(ev);
-    });
-    if(divEvents.length > 0) divInfo = `<span>除息紀錄 ${divEvents.length} 筆</span>`;
-  }catch(e){
-    divEvents = []; divByCode = {};
-  }
+    const d = await grab(URL_DIVS);
+    divsByCode = {};
+    (d.events || []).forEach(e => (divsByCode[e.code] = divsByCode[e.code] || []).push(e));
+    const n = (d.events || []).length;
+    if(n) tail += ` · 除息 ${n} 筆`;
+  }catch(e){ divsByCode = {}; }
 
-  el.className = "quote-status" + (priceOk ? "" : " stale");
-  el.innerHTML = priceInfo + divInfo;
+  el.className = "quote-state" + (ok ? "" : " off");
+  el.innerHTML = `<b>${head}</b>${esc(tail)}`;
 }
 
-/* ---------- 儲存 ---------- */
-function migrate(list){
+/* ── 儲存 ───────────────────────────── */
+function upgrade(list){
   return list.map(l => {
-    const out = Object.assign({}, l);
-    if(!Object.prototype.hasOwnProperty.call(out, "override")){
-      const had = typeof out.curPrice === "number" && out.curPrice !== out.buyPrice;
-      out.override = had ? out.curPrice : null;
-      delete out.curPrice;
+    const o = Object.assign({}, l);
+    if(!Object.prototype.hasOwnProperty.call(o, "override")){
+      const manual = typeof o.curPrice === "number" && o.curPrice !== o.buyPrice;
+      o.override = manual ? o.curPrice : null;
+      delete o.curPrice;
     }
-    if(!Object.prototype.hasOwnProperty.call(out, "dividend")) out.dividend = null;
-    if(!Object.prototype.hasOwnProperty.call(out, "buyDate")) out.buyDate = null;
-    return out;
+    if(!Object.prototype.hasOwnProperty.call(o, "dividend")) o.dividend = null;
+    if(!Object.prototype.hasOwnProperty.call(o, "buyDate")) o.buyDate = null;
+    return o;
   });
 }
-function loadLots(){
+function restore(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    lots = raw ? migrate(JSON.parse(raw)) : [];
+    const raw = localStorage.getItem(KEY_LOTS);
+    lots = raw ? upgrade(JSON.parse(raw)) : [];
   }catch(e){ lots = []; }
-  try{
-    includeDividend = localStorage.getItem(MODE_KEY) !== "price";
-  }catch(e){ includeDividend = true; }
+  try{ withDividend = localStorage.getItem(KEY_BASIS) !== "price"; }
+  catch(e){ withDividend = true; }
 }
-function save(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(lots)); }
-  catch(e){ console.error("儲存失敗", e); }
+function keep(){
+  try{ localStorage.setItem(KEY_LOTS, JSON.stringify(lots)); }
+  catch(e){ console.error("寫入失敗", e); }
 }
-function saveMode(){
-  try{ localStorage.setItem(MODE_KEY, includeDividend ? "total" : "price"); }catch(e){}
+function keepBasis(){
+  try{ localStorage.setItem(KEY_BASIS, withDividend ? "total" : "price"); }catch(e){}
 }
 
-/* ---------- 畫面 ---------- */
-function render(){
-  let invested = 0, dividends = 0, gain = 0;
-  lots.forEach(l => {
-    const c = computeLot(l);
-    invested += c.totalCost; dividends += c.dividend; gain += c.gain;
-  });
-  const rate = invested > 0 ? (gain / invested) * 100 : 0;
+/* ── 繪製 ───────────────────────────── */
+function paint(){
+  let cost = 0, dividend = 0, gain = 0;
+  lots.forEach(l => { const c = calc(l); cost += c.cost; dividend += c.dividend; gain += c.gain; });
+  const rate = cost > 0 ? gain / cost * 100 : 0;
 
-  document.getElementById("sumInvested").textContent = fmtMoney(invested);
-  document.getElementById("sumDividend").textContent = fmtMoney(dividends);
+  document.getElementById("vCost").textContent = money(cost);
+  document.getElementById("vDiv").textContent = money(dividend);
 
-  const gEl = document.getElementById("sumGain");
-  gEl.textContent = fmtMoney(gain);
-  gEl.className = "value " + (gain > 0 ? "gain" : gain < 0 ? "loss" : "neutral");
+  const g = document.getElementById("vGain");
+  g.textContent = money(gain);
+  g.className = "v " + tone(gain);
 
-  const rEl = document.getElementById("sumRate");
-  rEl.innerHTML = fmtRate(rate) + ` <span class="arrow">${arrow(rate)}</span>`;
-  rEl.className = "value " + (rate > 0 ? "gain" : rate < 0 ? "loss" : "neutral");
+  const r = document.getElementById("vRate");
+  r.textContent = pct(rate);
+  r.className = "pct " + tone(rate);
 
-  document.getElementById("labelGain").textContent = includeDividend ? "總收益金額（含息）" : "總收益金額（價差）";
-  document.getElementById("labelRate").textContent = includeDividend ? "總收益率（含息）" : "總收益率（價差）";
-  document.getElementById("modeTotal").className = includeDividend ? "active" : "";
-  document.getElementById("modePrice").className = includeDividend ? "" : "active";
-  document.getElementById("modeNote").textContent = includeDividend
-    ? "收益金額與收益率已計入配息" : "收益金額與收益率只計價差，配息另計";
+  document.getElementById("kGain").textContent = withDividend ? "損益 · 含息" : "損益 · 只看價差";
+  document.getElementById("bTotal").setAttribute("aria-pressed", String(withDividend));
+  document.getElementById("bPrice").setAttribute("aria-pressed", String(!withDividend));
+  document.getElementById("basisNote").textContent =
+    withDividend ? "配息已計入損益" : "損益只算價差，配息另外列";
 
-  const body = document.getElementById("lotsBody");
-  body.innerHTML = "";
+  const book = document.getElementById("book");
+  book.innerHTML = "";
+
   if(lots.length === 0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="10">尚未新增任何持股，於上方輸入代號開始建立庫存。</td></tr>`;
-    buildTicker();
+    book.innerHTML = `<tr class="blank"><td colspan="10">
+      <strong>存摺還是空的</strong>在下方登錄第一筆買進，這裡就會開始記帳。</td></tr>`;
     return;
   }
 
-  const order = [], groups = {};
+  /* 分組 */
+  const order = [], group = {};
   lots.forEach(l => {
-    if(!groups[l.code]){
-      groups[l.code] = { code:l.code, name:l.name, shares:0, totalCost:0,
-                         currentValue:0, dividend:0, lots:[] };
+    if(!group[l.code]){
+      group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, value:0, dividend:0, rows:[] };
       order.push(l.code);
     }
-    const c = computeLot(l), g = groups[l.code];
-    g.shares += l.shares; g.totalCost += c.totalCost;
-    g.currentValue += c.price * l.shares; g.dividend += c.dividend;
-    g.lots.push(l);
-    const fresh = lookupName(l.code);
-    if(fresh) g.name = fresh;
+    const c = calc(l), G = group[l.code];
+    G.shares += l.shares; G.cost += c.cost;
+    G.value += c.price * l.shares; G.dividend += c.dividend;
+    G.rows.push(l);
+    const fresh = nameOf(l.code);
+    if(fresh) G.name = fresh;
   });
+
+  /* 刻度以自己持股中最大報酬率為基準，至少 8% */
+  const rates = order.map(c => {
+    const G = group[c];
+    const gg = (G.value - G.cost) + (withDividend ? G.dividend : 0);
+    return G.cost > 0 ? Math.abs(gg / G.cost * 100) : 0;
+  });
+  const span = Math.max(8, ...rates);
 
   order.forEach(code => {
-    const g = groups[code];
-    const gGain = (g.currentValue - g.totalCost) + (includeDividend ? g.dividend : 0);
-    const gRate = g.totalCost > 0 ? (gGain / g.totalCost) * 100 : 0;
-    const collapsed = collapsedCodes.has(code);
+    const G = group[code];
+    const gg = (G.value - G.cost) + (withDividend ? G.dividend : 0);
+    const rr = G.cost > 0 ? gg / G.cost * 100 : 0;
+    const closed = shut.has(code);
+    const bar = Math.min(100, Math.abs(rr) / span * 100);
 
     const tr = document.createElement("tr");
-    tr.className = "group-row" + (collapsed ? " collapsed" : "");
+    tr.className = "entry" + (closed ? " shut" : "");
+    tr.tabIndex = 0;
     tr.innerHTML = `
-      <td class="left"><span class="code-cell"><span class="toggle-chevron">▾</span>${escapeHtml(g.code)}</span></td>
-      <td class="left">${escapeHtml(g.name)}</td>
-      <td>${g.shares.toLocaleString("en-US")}</td>
-      <td class="muted-cell">—</td>
-      <td class="muted-cell">—</td>
-      <td>${fmtMoney(g.totalCost)}</td>
-      <td class="${g.dividend > 0 ? "div-text" : "muted-cell"}">${fmtMoney(g.dividend)}</td>
-      <td class="${gainClass(gGain)}">${fmtMoney(gGain)}</td>
-      <td class="${gainClass(gGain)}">${fmtRate(gRate)}</td>
+      <td class="l"><span class="sym"><span class="caret">▼</span>${esc(G.code)}</span></td>
+      <td class="l">${esc(G.name)}</td>
+      <td>${G.shares.toLocaleString("en-US")}</td>
+      <td class="hide-sm nil">—</td>
+      <td class="nil">—</td>
+      <td class="hide-sm">${money(G.cost)}</td>
+      <td class="${G.dividend > 0 ? "" : "nil"}">${money(G.dividend)}</td>
+      <td class="${tone(gg)}">${money(gg)}</td>
+      <td class="${tone(rr)}"><span class="gauge">
+        <span class="num">${pct(rr)}</span>
+        <span class="rule" data-bar="${bar}" style="width:${firstPaint ? 0 : bar}%"></span>
+      </span></td>
       <td></td>`;
-    tr.addEventListener("click", () => {
-      collapsedCodes.has(code) ? collapsedCodes.delete(code) : collapsedCodes.add(code);
-      render();
+    const flip = () => { shut.has(code) ? shut.delete(code) : shut.add(code); paint(); };
+    tr.addEventListener("click", flip);
+    tr.addEventListener("keydown", e => {
+      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); flip(); }
     });
-    body.appendChild(tr);
+    book.appendChild(tr);
 
-    g.lots.forEach(l => {
-      const c = computeLot(l);
-      const pSrc = priceSource(l), dSrc = dividendSource(l);
-      const pChip = pSrc === "manual"
-        ? `<span class="src-chip manual">手動</span><button class="reset-btn" data-resetprice="${l.id}" title="還原自動報價">↺</button>`
-        : `<span class="src-chip">${pSrc === "auto" ? "自動" : "無報價"}</span>`;
-      const dChip = dSrc === "manual"
-        ? `<span class="src-chip manual">手動</span><button class="reset-btn" data-resetdiv="${l.id}" title="還原自動計算">↺</button>`
-        : `<span class="src-chip">${dSrc === "auto" ? "自動" : (dSrc === "none" ? "缺日期" : "無紀錄")}</span>`;
+    G.rows.forEach(l => {
+      const c = calc(l);
+      const pk = priceKind(l), dk = divKind(l);
+      const pTag = pk === "own"
+        ? `<span class="tag own">手動</span><button class="ghost" data-rp="${l.id}" title="還原自動報價" aria-label="還原自動報價">↺</button>`
+        : `<span class="tag">${pk === "auto" ? "自動" : "無價"}</span>`;
+      const dTag = dk === "own"
+        ? `<span class="tag own">手動</span><button class="ghost" data-rd="${l.id}" title="還原自動計算" aria-label="還原自動計算">↺</button>`
+        : `<span class="tag">${dk === "auto" ? "自動" : (dk === "nodate" ? "缺日期" : "無紀錄")}</span>`;
+      const soon = divPending(l);
+      const soonNote = (soon > 0 && dk !== "own")
+        ? `<span class="pending">待除息 ${money(soon)}</span>` : "";
 
       const row = document.createElement("tr");
-      row.className = "detail-row" + (collapsed ? " hidden-row" : "");
-      const upcoming = upcomingDividend(l);
-      const upcomingNote = (upcoming > 0 && dSrc !== "manual")
-        ? `<span class="name-sub" style="color:var(--div)">待除息 ${fmtMoney(upcoming)}</span>` : "";
+      row.className = "line" + (closed ? " shut" : "");
       row.innerHTML = `
-        <td class="left"><span class="code-cell">${escapeHtml(l.code)}</span></td>
-        <td class="left">${escapeHtml(l.name)}
-          <span class="name-sub">${l.buyDate ? escapeHtml(l.buyDate) + " 買入" : "未填買入日期"}</span></td>
+        <td class="l"><span class="sym">${esc(l.code)}</span></td>
+        <td class="l">${esc(l.name)}<span class="sub">${l.buyDate ? esc(l.buyDate) : "未填買進日"}</span></td>
         <td>${l.shares.toLocaleString("en-US")}</td>
-        <td>${l.buyPrice.toFixed(2)}</td>
-        <td><span class="cell-flex">
-          <input class="edit-input ${pSrc === "auto" ? "auto" : ""}" type="number" step="0.01"
-                 value="${c.price}" data-price="${l.id}" inputmode="decimal">${pChip}</span></td>
-        <td>${fmtMoney(c.totalCost)}</td>
-        <td><span class="cell-flex">
-          <input class="edit-input ${dSrc !== "manual" ? "auto" : ""}" type="number" step="1"
-                 value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal">${dChip}</span>
-          ${upcomingNote}</td>
-        <td class="${gainClass(c.gain)}">${fmtMoney(c.gain)}</td>
-        <td class="${gainClass(c.gain)}">${fmtRate(c.rate)}</td>
-        <td><button class="del-btn" data-del="${l.id}" title="刪除這筆">✕</button></td>`;
-      body.appendChild(row);
+        <td class="hide-sm">${l.buyPrice.toFixed(2)}</td>
+        <td><span class="pair">
+          <input class="num-in ${pk === "auto" ? "derived" : ""}" type="number" step="0.01"
+                 value="${c.price}" data-price="${l.id}" inputmode="decimal" aria-label="現價">${pTag}</span></td>
+        <td class="hide-sm">${money(c.cost)}</td>
+        <td><span class="pair">
+          <input class="num-in ${dk !== "own" ? "derived" : ""}" type="number" step="1"
+                 value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal" aria-label="配息">${dTag}</span>
+          ${soonNote}</td>
+        <td class="${tone(c.gain)}">${money(c.gain)}</td>
+        <td class="${tone(c.gain)}">${pct(c.rate)}</td>
+        <td><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
+      book.appendChild(row);
     });
   });
 
-  bindRowEvents();
-  buildTicker();
+  wire();
+
+  if(firstPaint){
+    firstPaint = false;
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".gauge .rule").forEach(el => {
+        el.style.width = el.dataset.bar + "%";
+      });
+    });
+  }
+  document.getElementById("stampTime").textContent = "檢視於 " + today();
 }
 
 const findLot = id => lots.find(x => String(x.id) === String(id));
 
-function bindRowEvents(){
-  document.querySelectorAll(".edit-input").forEach(inp => {
-    inp.addEventListener("click", e => e.stopPropagation());
-    inp.addEventListener("change", e => {
-      const t = e.target;
-      const lot = findLot(t.dataset.price || t.dataset.div);
+function wire(){
+  document.querySelectorAll(".num-in").forEach(i => {
+    i.addEventListener("click", e => e.stopPropagation());
+    i.addEventListener("change", e => {
+      const t = e.target, lot = findLot(t.dataset.price || t.dataset.div);
       if(!lot) return;
-      const val = parseFloat(t.value);
-      if(t.dataset.price) lot.override = isNaN(val) ? null : val;
-      else lot.dividend = isNaN(val) ? null : val;
-      save(); render();
+      const v = parseFloat(t.value);
+      if(t.dataset.price) lot.override = isNaN(v) ? null : v;
+      else lot.dividend = isNaN(v) ? null : v;
+      keep(); paint();
     });
   });
-  document.querySelectorAll("[data-resetprice]").forEach(b => {
-    b.addEventListener("click", e => {
-      e.stopPropagation();
-      const lot = findLot(e.currentTarget.dataset.resetprice);
-      if(lot){ lot.override = null; save(); render(); }
-    });
-  });
-  document.querySelectorAll("[data-resetdiv]").forEach(b => {
-    b.addEventListener("click", e => {
-      e.stopPropagation();
-      const lot = findLot(e.currentTarget.dataset.resetdiv);
-      if(lot){ lot.dividend = null; save(); render(); }
-    });
-  });
-  document.querySelectorAll("[data-del]").forEach(b => {
-    b.addEventListener("click", e => {
-      e.stopPropagation();
-      const id = e.currentTarget.dataset.del;
-      lots = lots.filter(x => String(x.id) !== String(id));
-      save(); render();
-    });
+  const hook = (sel, fn) => document.querySelectorAll(sel).forEach(b =>
+    b.addEventListener("click", e => { e.stopPropagation(); fn(e.currentTarget); }));
+  hook("[data-rp]", b => { const l = findLot(b.dataset.rp); if(l){ l.override = null; keep(); paint(); } });
+  hook("[data-rd]", b => { const l = findLot(b.dataset.rd); if(l){ l.dividend = null; keep(); paint(); } });
+  hook("[data-del]", b => {
+    lots = lots.filter(x => String(x.id) !== String(b.dataset.del));
+    keep(); paint();
   });
 }
 
-function buildTicker(){
-  const track = document.getElementById("tickerTrack");
-  if(lots.length === 0){
-    track.innerHTML = `<span>尚無持股資料 — 於下方新增你的第一筆股票</span>`;
-    return;
-  }
-  const seen = {};
-  lots.forEach(l => { if(!seen[l.code]) seen[l.code] = l.name; });
-  let html = "";
-  Object.keys(seen).forEach(code => {
-    const rows = lots.filter(x => x.code === code);
-    const cost = rows.reduce((s,x) => s + x.shares * x.buyPrice, 0);
-    let val = rows.reduce((s,x) => s + x.shares * effectivePrice(x), 0);
-    if(includeDividend) val += rows.reduce((s,x) => s + effectiveDividend(x), 0);
-    const r = cost > 0 ? ((val - cost) / cost * 100) : 0;
-    html += `<span><span class="t-code">${escapeHtml(code)}</span> ${escapeHtml(lookupName(code) || seen[code])} ${fmtRate(r)} ${arrow(r)}</span>`;
-  });
-  track.innerHTML = html + html;
-}
+/* ── 登錄表單 ───────────────────────── */
+const fCode = document.getElementById("fCode");
+const fName = document.getElementById("fName");
+const fManualWrap = document.getElementById("fManualWrap");
+const fManual = document.getElementById("fManual");
+const fAlert = document.getElementById("fAlert");
 
-/* ---------- 表單 ---------- */
-const inCode = document.getElementById("inCode");
-const namePreview = document.getElementById("namePreview");
-const customField = document.getElementById("customNameField");
-const inCustomName = document.getElementById("inCustomName");
-
-function updateNamePreview(){
-  const code = inCode.value.trim();
+function resolveName(){
+  const code = fCode.value.trim();
   if(!code){
-    namePreview.textContent = "請輸入代號";
-    namePreview.className = "name-tag unknown";
-    customField.style.display = "none";
+    fName.textContent = "輸入代號後自動帶出";
+    fName.className = "resolved none";
+    fManualWrap.style.display = "none";
     return;
   }
-  const q = lookupQuote(code);
+  const q = quoteOf(code);
   if(q && q.name){
-    namePreview.innerHTML = `${escapeHtml(q.name)}<span class="market-chip">${escapeHtml(q.market || "")}</span>` +
-      (typeof q.close === "number" ? `<span class="market-chip">收盤 ${q.close}</span>` : "");
-    namePreview.className = "name-tag";
-    customField.style.display = "none";
+    fName.innerHTML = `${esc(q.name)}<span class="tag">${esc(q.market || "")}</span>` +
+      (typeof q.close === "number" ? `<span class="tag">收盤 ${q.close}</span>` : "");
+    fName.className = "resolved";
+    fManualWrap.style.display = "none";
   } else {
-    namePreview.textContent = "查無此代號";
-    namePreview.className = "name-tag unknown";
-    customField.style.display = "";
+    fName.textContent = "查無此代號";
+    fName.className = "resolved none";
+    fManualWrap.style.display = "";
   }
 }
-inCode.addEventListener("input", updateNamePreview);
+fCode.addEventListener("input", resolveName);
 
-document.getElementById("addBtn").addEventListener("click", () => {
-  const code = inCode.value.trim();
-  const shares = parseFloat(document.getElementById("inShares").value);
-  const buyPrice = parseFloat(document.getElementById("inBuyPrice").value);
-  const buyDate = document.getElementById("inBuyDate").value || null;
+document.getElementById("fAdd").addEventListener("click", () => {
+  const code = fCode.value.trim();
+  const shares = parseFloat(document.getElementById("fShares").value);
+  const buyPrice = parseFloat(document.getElementById("fPrice").value);
+  const buyDate = document.getElementById("fDate").value || null;
 
-  if(!code || !shares || shares <= 0 || !buyPrice || buyPrice <= 0){
-    alert("請完整輸入股票代號、股數與買入價格");
-    return;
-  }
+  if(!code){ fAlert.textContent = "還缺代號"; fCode.focus(); return; }
+  if(!shares || shares <= 0){ fAlert.textContent = "股數要大於 0"; return; }
+  if(!buyPrice || buyPrice <= 0){ fAlert.textContent = "買進價要大於 0"; return; }
+  fAlert.textContent = "";
+
   lots.push({
-    id: Date.now() + "-" + Math.random().toString(36).slice(2,8),
+    id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
     code,
-    name: lookupName(code) || inCustomName.value.trim() || code,
+    name: nameOf(code) || fManual.value.trim() || code,
     shares, buyPrice, buyDate,
     override: null, dividend: null
   });
-  save(); render();
+  keep(); paint();
 
-  inCode.value = "";
-  document.getElementById("inShares").value = "";
-  document.getElementById("inBuyPrice").value = "";
-  inCustomName.value = "";
-  updateNamePreview();
-  inCode.focus();
+  fCode.value = "";
+  document.getElementById("fShares").value = "";
+  document.getElementById("fPrice").value = "";
+  fManual.value = "";
+  resolveName();
+  fCode.focus();
 });
 
-document.getElementById("modeTotal").addEventListener("click", () => {
-  includeDividend = true; saveMode(); render();
+document.getElementById("bTotal").addEventListener("click", () => {
+  withDividend = true; keepBasis(); paint();
 });
-document.getElementById("modePrice").addEventListener("click", () => {
-  includeDividend = false; saveMode(); render();
+document.getElementById("bPrice").addEventListener("click", () => {
+  withDividend = false; keepBasis(); paint();
 });
 
-/* ---------- 啟動 ---------- */
-(async function init(){
-  loadLots();
-  render();
-  await loadPrices();
-  render();
-  updateNamePreview();
+/* ── 啟動 ───────────────────────────── */
+(async function start(){
+  restore();
+  paint();
+  await loadFeeds();
+  paint();
+  resolveName();
 })();
 </script>
 </body>

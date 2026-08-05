@@ -33,9 +33,9 @@ def twse_site_sources():
         ("官網STOCK_DAY_ALL",
          "https://www.twse.com.tw/exchangeReport/STOCK_DAY_ALL?response=json"),
         ("官網rwd/MI_INDEX",
-         f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={d}&type=ALL&response=json"),
+         f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={d}&type=ALLBUT0999&response=json"),
         ("官網MI_INDEX",
-         f"https://www.twse.com.tw/exchangeReport/MI_INDEX?date={d}&type=ALL&response=json"),
+         f"https://www.twse.com.tw/exchangeReport/MI_INDEX?date={d}&type=ALLBUT0999&response=json"),
     ]
 
 # 櫃買中心的端點名稱歷年改過，依序嘗試，取第一個能解析出資料的
@@ -132,6 +132,17 @@ def _tables_from(payload):
     return out
 
 
+import re
+
+# 只保留個股與 ETF：四碼股票（含特別股尾碼字母）、00 開頭的 ETF。
+# 權證（03xxxx）、ETN（02xxxx）、可轉債等六碼代號一律排除。
+_KEEP_CODE = re.compile(r"^(?:\d{4}[A-Z]?|00\d{2,4}[A-Z]?)$", re.I)
+
+
+def is_tradable(code):
+    return bool(_KEEP_CODE.match(str(code).strip()))
+
+
 def _col(fields, *needles):
     """在欄位名稱清單中找出第一個符合的索引。"""
     for i, f in enumerate(fields):
@@ -144,10 +155,10 @@ def _col(fields, *needles):
 
 def parse_twse(payload, fallback_date=None):
     """解析上市行情，回傳 (資料, 交易日)。吃得下 dict 陣列與 fields/data 陣列兩種。"""
-    best, best_date = {}, None
+    best, best_date, best_skipped = {}, None, 0
 
     for fields, rows in _tables_from(payload):
-        out, date = {}, None
+        out, date, skipped = {}, None, 0
 
         if fields is None:                      # dict 陣列
             for row in rows:
@@ -156,6 +167,9 @@ def parse_twse(payload, fallback_date=None):
                 code = str(pick(row, "Code", "證券代號", "股票代號") or "").strip()
                 close = to_float(pick(row, "ClosingPrice", "收盤價"))
                 if not code or close is None:
+                    continue
+                if not is_tradable(code):
+                    skipped += 1
                     continue
                 if date is None:
                     date = roc_to_iso(pick(row, "Date", "日期") or "")
@@ -179,6 +193,9 @@ def parse_twse(payload, fallback_date=None):
                 close = to_float(row[i_close])
                 if not code or close is None:
                     continue
+                if not is_tradable(code):
+                    skipped += 1
+                    continue
                 out[code] = {
                     "name": str(row[i_name]).strip() if i_name is not None and len(row) > i_name else "",
                     "close": close,
@@ -187,11 +204,11 @@ def parse_twse(payload, fallback_date=None):
                 }
 
         if out and len(out) > len(best):
-            best, best_date = out, date
+            best, best_date, best_skipped = out, date, skipped
 
     if best_date is None:
         best_date = fallback_date
-    return best, best_date
+    return best, best_date, best_skipped
 
 
 def fetch_twse():
@@ -209,13 +226,14 @@ def fetch_twse():
         fallback = None
         if isinstance(payload, dict) and payload.get("date"):
             fallback = roc_to_iso(payload["date"])
-        data, date = parse_twse(payload, fallback)
+        data, date, skipped = parse_twse(payload, fallback)
 
         if not data:
             print(f"  [上市/{label}] 沒有解析出資料", file=sys.stderr)
             continue
 
-        print(f"  [上市/{label}] {len(data)} 檔，交易日 {date}")
+        extra = f"，濾除非個股 {skipped} 筆" if skipped else ""
+        print(f"  [上市/{label}] {len(data)} 檔，交易日 {date}{extra}")
         if best_date is None or (date is not None and date > best_date):
             best, best_date, best_label = data, date, label
 

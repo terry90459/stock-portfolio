@@ -19,23 +19,31 @@ TIMEOUT = 40
 TPE = timezone(timedelta(hours=8))
 OUTPUT = "dividends.json"
 
-# 依序嘗試；欄位名稱各端點不同，靠 pick() 容錯
-SOURCES = [
-    ("上市-除權除息計算結果", "https://openapi.twse.com.tw/v1/exchangeReport/TWT49U"),
-    ("上市-除權除息預告", "https://openapi.twse.com.tw/v1/exchangeReport/TWT48U"),
+# 已知可用的來源
+KNOWN_SOURCES = [
     ("上櫃-除權息", "https://www.tpex.org.tw/openapi/v1/tpex_exright_prepost"),
+]
+
+# 端點名稱會變動，改成從 swagger 自動探索含「除權/除息」的端點
+SWAGGERS = [
+    ("上市", "https://openapi.twse.com.tw/v1/swagger.json", "https://openapi.twse.com.tw/v1"),
+    ("上櫃", "https://www.tpex.org.tw/openapi/swagger.json", "https://www.tpex.org.tw/openapi"),
 ]
 
 # 各欄位的候選鍵名（中英混雜，端點之間不一致）
 KEYS_CODE = ("Code", "SecuritiesCompanyCode", "StockID", "股票代號", "證券代號", "公司代號")
 KEYS_NAME = ("Name", "CompanyName", "股票名稱", "證券名稱", "公司名稱")
-KEYS_DATE = ("Date", "ExRightsExDividendDate", "ExDate", "除權息交易日", "除權除息交易日", "資料日期", "除息交易日")
+KEYS_DATE = (
+    "ExRrightsExDividendDate",  # 櫃買官方欄位，Rrights 為其原始拼法
+    "ExRightsExDividendDate", "ExDividendDate", "ExDate", "Date",
+    "除權息交易日", "除權除息交易日", "除息交易日", "資料日期",
+)
 KEYS_CASH = (
     "CashDividend", "CashEarningsDistribution", "現金股利", "息值",
     "股東配發-盈餘分配之現金股利(元/股)", "權值+息值",
 )
-KEYS_STOCK = ("StockDividend", "權值", "股東配發-盈餘轉增資配股(元/股)")
-KEYS_TYPE = ("Type", "權/息", "除權息", "類別")
+KEYS_STOCK = ("StockDividendRatio", "StockDividend", "權值", "股東配發-盈餘轉增資配股(元/股)")
+KEYS_TYPE = ("ExRrightsExDividend", "ExRightsExDividend", "Type", "權/息", "除權息", "類別")
 
 
 def http_get_json(url):
@@ -126,6 +134,34 @@ def parse_rows(label, rows):
     return events
 
 
+def discover_sources():
+    """
+    從各交易所的 swagger 找出摘要含「除權」或「除息」的端點。
+    端點代號（TWT49U 這類）會隨官方改版變動，用探索取代硬寫比較不會壞。
+    """
+    found = []
+    for label, swagger_url, base in SWAGGERS:
+        try:
+            spec = http_get_json(swagger_url)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] {label} swagger 讀取失敗：{exc}", file=sys.stderr)
+            continue
+
+        for path, methods in (spec.get("paths") or {}).items():
+            info = (methods or {}).get("get") or {}
+            summary = str(info.get("summary") or "")
+            if "除權" in summary or "除息" in summary:
+                found.append((f"{label}-{summary}", base + path))
+
+    if found:
+        print(f"[info] 從 swagger 探索到 {len(found)} 個除權息端點：")
+        for name, url in found:
+            print(f"    {name} -> {url}")
+    else:
+        print("[warn] swagger 沒有探索到除權息端點", file=sys.stderr)
+    return found
+
+
 def load_existing():
     if not os.path.exists(OUTPUT):
         return {}
@@ -143,8 +179,15 @@ def main():
     before = len(existing)
     print(f"[info] 既有事件 {before} 筆")
 
+    # 已知來源優先，再加上探索到的（去重）
+    sources, seen_urls = [], set()
+    for label, url in KNOWN_SOURCES + discover_sources():
+        if url not in seen_urls:
+            seen_urls.add(url)
+            sources.append((label, url))
+
     found_any = False
-    for label, url in SOURCES:
+    for label, url in sources:
         try:
             rows = http_get_json(url)
         except Exception as exc:  # noqa: BLE001

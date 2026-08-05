@@ -20,8 +20,15 @@
 
 資料來源（皆為公開 OpenAPI，不需金鑰）：
 
+收盤價：
+
 - 上市：`https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`
 - 上櫃：`https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes`
+
+除權息：櫃買的 `tpex_exright_prepost`，加上從兩家 swagger 自動探索出摘要含
+「除權/除息」的端點。端點代號會隨官方改版變動，所以用探索取代硬寫。
+櫃買的除息日欄位官方拼作 `ExRrightsExDividendDate`（Rrights，兩個 r），
+對照表已納入。
 
 價格是**收盤價**，不是即時報價。兩個來源都失敗時腳本會直接結束，不會覆寫既有的
 `prices.json`，頁面仍會顯示上一次的價格。

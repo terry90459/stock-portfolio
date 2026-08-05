@@ -1,4 +1,4 @@
-name: 更新台股收盤價
+name: 更新台股收盤價與除權息
 
 on:
   schedule:
@@ -29,14 +29,18 @@ jobs:
       - name: 抓取收盤行情
         run: python scripts/fetch_prices.py
 
+      - name: 累積除權息紀錄
+        run: python scripts/fetch_dividends.py
+        continue-on-error: true
+
       - name: 有更新才 commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- prices.json; then
-            echo "報價沒有變化，略過 commit"
+          if git diff --quiet -- prices.json dividends.json; then
+            echo "資料沒有變化，略過 commit"
           else
-            git add prices.json
-            git commit -m "更新收盤價 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+            git add prices.json dividends.json
+            git commit -m "更新收盤價與除權息 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
             git push
           fi

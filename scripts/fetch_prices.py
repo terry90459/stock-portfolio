@@ -18,6 +18,13 @@ from datetime import datetime, timezone, timedelta
 
 TWSE_URL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
 
+# 上市依序嘗試，取交易日最新的一份。
+# OpenAPI 版本觀察到會落後一個交易日，官網版本據稱有當日資料，兩邊都抓再比。
+TWSE_SOURCES = [
+    ("OpenAPI", TWSE_URL),
+    ("官網open_data", "https://www.twse.com.tw/exchangeReport/STOCK_DAY_ALL?response=open_data"),
+]
+
 # 櫃買中心的端點名稱歷年改過，依序嘗試，取第一個能解析出資料的
 TPEX_URLS = [
     "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes",
@@ -73,24 +80,51 @@ def pick(row, *keys):
     return None
 
 
-def fetch_twse():
-    rows = http_get_json(TWSE_URL)
+def parse_twse(rows):
+    """解析上市行情列表，回傳 (資料, 交易日)。"""
     out = {}
     trade_date = None
     for row in rows:
-        code = str(row.get("Code", "")).strip()
-        close = to_float(row.get("ClosingPrice"))
+        if not isinstance(row, dict):
+            continue
+        code = str(pick(row, "Code", "證券代號", "股票代號") or "").strip()
+        close = to_float(pick(row, "ClosingPrice", "收盤價"))
         if not code or close is None:
             continue
         if trade_date is None:
-            trade_date = roc_to_iso(row.get("Date", ""))
+            trade_date = roc_to_iso(pick(row, "Date", "日期") or "")
         out[code] = {
-            "name": str(row.get("Name", "")).strip(),
+            "name": str(pick(row, "Name", "證券名稱", "股票名稱") or "").strip(),
             "close": close,
-            "change": to_float(row.get("Change")) or 0.0,
+            "change": to_float(pick(row, "Change", "漲跌價差")) or 0.0,
             "market": "上市",
         }
     return out, trade_date
+
+
+def fetch_twse():
+    """抓所有上市來源，回傳交易日最新的一份。"""
+    best, best_date, best_label = {}, None, None
+    for label, url in TWSE_SOURCES:
+        try:
+            rows = http_get_json(url)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  [上市/{label}] 抓取失敗：{exc}", file=sys.stderr)
+            continue
+
+        data, date = parse_twse(rows if isinstance(rows, list) else [])
+        if not data:
+            print(f"  [上市/{label}] 沒有解析出資料", file=sys.stderr)
+            continue
+
+        print(f"  [上市/{label}] {len(data)} 檔，交易日 {date}")
+        # 日期較新者勝；抓不到日期的來源只在沒有其他選擇時採用
+        if best_date is None or (date is not None and date > best_date):
+            best, best_date, best_label = data, date, label
+
+    if best_label:
+        print(f"  [上市] 採用 {best_label}（交易日 {best_date}）")
+    return best, best_date
 
 
 def fetch_tpex():
@@ -140,24 +174,34 @@ def main():
     trade_date = None
     sources = []
 
+    dates = []
+
     try:
         twse, date_twse = fetch_twse()
-        prices.update(twse)
-        trade_date = trade_date or date_twse
-        sources.append(f"上市 {len(twse)} 檔")
-        print(f"[ok] 上市：{len(twse)} 檔，交易日 {date_twse}")
+        if twse:
+            prices.update(twse)
+            sources.append(f"上市 {len(twse)} 檔")
+            if date_twse:
+                dates.append(date_twse)
     except Exception as exc:  # noqa: BLE001
         print(f"[error] 上市資料抓取失敗：{exc}", file=sys.stderr)
 
     try:
         tpex, date_tpex = fetch_tpex()
-        prices.update(tpex)
-        trade_date = trade_date or date_tpex
         if tpex:
+            prices.update(tpex)
             sources.append(f"上櫃 {len(tpex)} 檔")
-            print(f"[ok] 上櫃：{len(tpex)} 檔，交易日 {date_tpex}")
+            print(f"  [上櫃] {len(tpex)} 檔，交易日 {date_tpex}")
+            if date_tpex:
+                dates.append(date_tpex)
     except Exception as exc:  # noqa: BLE001
         print(f"[error] 上櫃資料抓取失敗：{exc}", file=sys.stderr)
+
+    # 兩市場日期不同時取較舊的，寧可低報也不要讓使用者以為資料比實際新
+    trade_date = min(dates) if dates else None
+    if len(set(dates)) > 1:
+        print(f"[warn] 兩市場交易日不一致：{sorted(set(dates))}，保守標示為 {trade_date}",
+              file=sys.stderr)
 
     if not prices:
         print("[fatal] 兩個來源都沒有資料，不覆寫既有的 prices.json", file=sys.stderr)
@@ -166,6 +210,7 @@ def main():
     payload = {
         "updatedAt": datetime.now(TPE).isoformat(timespec="seconds"),
         "tradeDate": trade_date,
+        "tradeDates": sorted(set(dates)),
         "count": len(prices),
         "sources": sources,
         "prices": prices,

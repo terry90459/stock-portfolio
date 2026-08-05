@@ -199,9 +199,14 @@
   }
   tr.line .sym{
     display: inline-block; margin-left: 9px; padding-left: 13px;
-    border-left: 2px solid var(--rule); color: var(--ink-soft);
+    border-left: 4px solid var(--rule); color: var(--ink-soft);
     font-family: var(--mono); font-size: 13.5px;
   }
+  /* 縮排線兼作損益指示，一眼掃出哪筆賺哪筆賠 */
+  tr.line.up   .sym{ border-left-color: var(--rise); }
+  tr.line.down .sym{ border-left-color: var(--fall); }
+  tr.line td.pl{ font-size: 15.5px; font-weight: 500; }
+  .mark{ font-size: 11px; margin-right: 3px; vertical-align: 1px; }
   tr.line .co{
     display: block; font-family: var(--mono); font-size: 11.5px;
     color: var(--ink-soft); letter-spacing: .02em; margin-top: 1px;
@@ -682,7 +687,9 @@ function paint(){
         ? `<span class="sub pending">待除息 ${money(soon)}</span>` : "";
 
       const row = document.createElement("tr");
-      row.className = "line" + (closed ? " shut" : "");
+      const dir = c.gain > 0 ? " up" : (c.gain < 0 ? " down" : "");
+      const mark = c.gain > 0 ? "▲" : (c.gain < 0 ? "▼" : "");
+      row.className = "line" + dir + (closed ? " shut" : "");
       row.innerHTML = `
         <td class="l"><span class="sym">${esc(l.code)}</span>
           <span class="co">${l.buyDate ? esc(l.buyDate) : "未填買進日"}${l.regular ? " · 定期定額" : ""}</span></td>
@@ -698,7 +705,7 @@ function paint(){
           <input class="num-in ${dk !== "own" ? "derived" : ""}" type="number" step="1"
                  value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal" aria-label="配息">${dTag}</span>
           ${soonNote}</td>
-        <td class="${tone(c.gain)}">${money(c.gain)}<span class="gauge"><span class="num">${pct(c.rate)}</span></span></td>
+        <td class="pl ${tone(c.gain)}"><span class="mark">${mark}</span>${money(c.gain)}<span class="gauge"><span class="num">${pct(c.rate)}</span></span></td>
         <td class="settled">${money(c.net)}<span class="sub">${sellNote(c.sellFee, c.sellTax, exempt)}</span></td>
         <td><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
       book.appendChild(row);

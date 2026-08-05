@@ -10,7 +10,6 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* 防偽紙、印刷墨、台股紅漲綠跌 */
     --paper:      #e8eee7;
     --paper-lit:  #f2f6f1;
     --paper-deep: #dde5dc;
@@ -38,272 +37,200 @@
     font-size: 16.5px;
     line-height: 1.65;
   }
-
-  .sheet{
-    max-width: 1240px;
-    margin: 0 auto;
-    padding: 0 20px 96px;
-  }
+  .sheet{ max-width: 1240px; margin: 0 auto; padding: 0 20px 96px; }
 
   /* ── 抬頭 ───────────────────────────── */
   .masthead{
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    padding: 34px 0 14px;
-    border-bottom: 2px solid var(--ink);
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    padding: 34px 0 14px; border-bottom: 2px solid var(--ink);
   }
   .masthead h1{
-    font-family: var(--serif);
-    font-weight: 900;
-    font-size: 34px;
-    letter-spacing: .14em;
-    margin: 0;
-    line-height: 1;
+    font-family: var(--serif); font-weight: 900; font-size: 34px;
+    letter-spacing: .14em; margin: 0; line-height: 1;
   }
   .masthead h1 .en{
-    display: block;
-    font-family: var(--mono);
-    font-weight: 400;
-    font-size: 11.5px;
-    letter-spacing: .3em;
-    color: var(--ink-soft);
-    margin-top: 9px;
+    display: block; font-family: var(--mono); font-weight: 400;
+    font-size: 11.5px; letter-spacing: .3em; color: var(--ink-soft); margin-top: 9px;
   }
   .quote-state{
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--ink-soft);
-    text-align: right;
-    line-height: 1.7;
+    font-family: var(--mono); font-size: 13px; color: var(--ink-soft);
+    text-align: right; line-height: 1.7;
   }
-  .quote-state b{
-    display: block;
-    color: var(--ink);
-    font-weight: 500;
-    letter-spacing: .04em;
-  }
+  .quote-state b{ display: block; color: var(--ink); font-weight: 500; letter-spacing: .04em; }
   .quote-state.off b{ color: var(--ink-soft); }
 
-  /* ── 結存（蓋章式總覽） ─────────────── */
+  /* ── 結存 ───────────────────────────── */
   .balance{
-    border: 1px solid var(--rule);
-    border-top: none;
-    background: var(--paper-lit);
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.4fr;
+    border: 1px solid var(--rule); border-top: none; background: var(--paper-lit);
+    display: grid; grid-template-columns: 1fr 1fr 1.25fr 1.25fr;
   }
-  .cell{
-    padding: 18px 20px 16px;
-    border-right: 1px solid var(--rule-fine);
-  }
+  .cell{ padding: 16px 18px 15px; border-right: 1px solid var(--rule-fine); }
   .cell:last-child{ border-right: none; }
-  .cell .k{
-    font-size: 12.5px;
-    letter-spacing: .16em;
-    color: var(--ink-soft);
-    margin-bottom: 7px;
+  .cell .k{ font-size: 12.5px; letter-spacing: .12em; color: var(--ink-soft); margin-bottom: 7px; }
+  .cell .k small{ font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; }
+  .cell .v{ font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: -.01em; }
+  .cell.big{ background: var(--paper-deep); }
+  .cell.big .v{ font-size: 31px; }
+  .cell.settled-cell{ box-shadow: inset 3px 0 0 var(--stamp); }
+  .pct{
+    display: inline-block; font-family: var(--mono); font-size: 16px; font-weight: 500;
+    padding: 1px 8px 2px; border: 1px solid currentColor; margin-left: 9px;
+    vertical-align: 3px;
   }
-  .cell .v{
-    font-family: var(--mono);
-    font-size: 26px;
-    font-weight: 500;
-    letter-spacing: -.01em;
-  }
-  .cell.total{
-    background: var(--paper-deep);
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .cell.total .v{ font-size: 34px; }
-  .cell.total .pct{
-    font-family: var(--mono);
-    font-size: 19px;
-    font-weight: 500;
-    padding: 2px 10px 3px;
-    border: 1px solid currentColor;
-  }
-  .rise{ color: var(--rise); }
-  .fall{ color: var(--fall); }
-  .flat{ color: var(--ink); }
+  .rise{ color: var(--rise); } .fall{ color: var(--fall); } .flat{ color: var(--ink); }
 
-  /* ── 計息切換 ───────────────────────── */
+  /* ── 切換 ───────────────────────────── */
   .basis{
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    padding: 15px 0 0;
-    font-size: 13.5px;
-    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 15px 0 0; font-size: 13.5px; color: var(--ink-soft);
   }
   .seg{ display: inline-flex; border: 1px solid var(--ink); }
   .seg button{
-    appearance: none;
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--ink);
-    font-family: var(--sans);
-    font-size: 13.5px;
-    color: var(--ink);
-    padding: 6px 17px;
-    cursor: pointer;
+    appearance: none; background: transparent; border: none;
+    border-right: 1px solid var(--ink); font-family: var(--sans);
+    font-size: 13.5px; color: var(--ink); padding: 6px 17px; cursor: pointer;
   }
   .seg button:last-child{ border-right: none; }
   .seg button[aria-pressed="true"]{ background: var(--ink); color: var(--paper); }
-  button:focus-visible, input:focus-visible{
-    outline: 2px solid var(--stamp);
-    outline-offset: 1px;
-  }
+  button:focus-visible, input:focus-visible{ outline: 2px solid var(--stamp); outline-offset: 1px; }
 
   /* ── 區段標題 ───────────────────────── */
   .band{
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin: 40px 0 0;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--ink);
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin: 38px 0 0;
+    padding-bottom: 6px; border-bottom: 1px solid var(--ink);
   }
-  .band h2{
-    font-family: var(--serif);
-    font-weight: 700;
-    font-size: 18px;
-    letter-spacing: .16em;
-    margin: 0;
-  }
+  .band h2{ font-family: var(--serif); font-weight: 700; font-size: 18px; letter-spacing: .16em; margin: 0; }
   .band .aside{ font-size: 13px; color: var(--ink-soft); }
+
+  /* ── 登錄表單 ───────────────────────── */
+  .entry-form{
+    border: 1px solid var(--rule); border-top: none;
+    background: var(--paper-lit); padding: 20px;
+  }
+  .fields{
+    display: grid;
+    grid-template-columns: 112px minmax(160px, 1fr) 112px 132px;
+    gap: 16px 18px; align-items: end;
+  }
+  .fields .commit{ align-self: end; }
+  .fields .f.wide{ grid-column: 1 / -1; max-width: 320px; }
+  .f label{ display: block; font-size: 12.5px; letter-spacing: .1em; color: var(--ink-soft); margin-bottom: 5px; }
+  .f input{
+    width: 100%; background: transparent; border: none;
+    border-bottom: 1px solid var(--ink); font-family: var(--mono);
+    font-size: 16.5px; color: var(--ink); padding: 7px 2px;
+  }
+  .f input::placeholder{ color: var(--rule); }
+  .f input:focus{ outline: none; border-bottom: 2px solid var(--stamp); padding-bottom: 6px; }
+  .f input[type=date]{ font-size: 15px; }
+  .resolved{
+    min-height: 34px; display: flex; align-items: center; gap: 8px;
+    font-family: var(--sans); font-size: 16.5px;
+    border-bottom: 1px solid var(--rule); padding-bottom: 6px;
+  }
+  .resolved.none{ color: var(--ink-soft); }
+  .check{
+    display: flex; align-items: center; gap: 9px; cursor: pointer;
+    padding-bottom: 7px; font-size: 14.5px; user-select: none;
+  }
+  .check input{
+    appearance: none; width: 17px; height: 17px; flex: none;
+    border: 1px solid var(--ink); background: transparent; cursor: pointer;
+    display: grid; place-content: center;
+  }
+  .check input:checked{ background: var(--stamp); border-color: var(--stamp); }
+  .check input:checked::after{ content: "✓"; color: var(--paper); font-size: 12px; line-height: 1; }
+  .check b{
+    display: block; font-family: var(--mono); font-weight: 400;
+    font-size: 11.5px; color: var(--ink-soft); letter-spacing: .04em;
+  }
+  .commit{
+    appearance: none; background: var(--ink); color: var(--paper); border: none;
+    font-family: var(--sans); font-size: 15px; font-weight: 500;
+    letter-spacing: .08em; padding: 11px 26px; cursor: pointer;
+  }
+  .commit:hover{ background: var(--stamp); }
+  .note{
+    font-size: 13px; color: var(--ink-soft); line-height: 1.75;
+    margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule-fine);
+  }
+  .alert{ font-size: 13.5px; color: var(--rise); margin-top: 12px; min-height: 20px; }
 
   /* ── 存摺表格 ───────────────────────── */
   .scroll{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table{ width: 100%; border-collapse: collapse; }
   thead th{
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: .1em;
-    color: var(--ink-soft);
-    text-align: right;
-    padding: 9px 11px;
-    border-bottom: 1px solid var(--rule);
-    white-space: nowrap;
+    font-size: 12px; font-weight: 500; letter-spacing: .1em; color: var(--ink-soft);
+    text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap;
   }
   thead th.l{ text-align: left; }
   tbody td{
-    font-family: var(--mono);
-    font-size: 15px;
-    text-align: right;
-    padding: 10px 11px;
-    border-bottom: 1px solid var(--rule-fine);
-    white-space: nowrap;
-    vertical-align: middle;
+    font-family: var(--mono); font-size: 15px; text-align: right;
+    padding: 10px; border-bottom: 1px solid var(--rule-fine);
+    white-space: nowrap; vertical-align: middle;
   }
   tbody td.l{ text-align: left; font-family: var(--sans); }
 
-  /* 統整列：壓深底色、加粗、上緣用實線把每一檔切開 */
   tr.entry{ background: var(--paper-deep); cursor: pointer; }
   tr.entry:hover{ background: #d2dcd1; }
   tr.entry td{
-    border-top: 2px solid var(--ink);
-    border-bottom: 1px solid var(--rule);
-    font-size: 16.5px;
-    font-weight: 600;
-    padding-top: 14px;
-    padding-bottom: 12px;
+    border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule);
+    font-size: 16px; font-weight: 600; padding-top: 13px; padding-bottom: 13px;
   }
   tr.entry td.l{ font-weight: 500; }
   tr.entry .sym{
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--mono);
-    font-weight: 600;
-    font-size: 17px;
-    letter-spacing: .02em;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-weight: 600; font-size: 17px; letter-spacing: .02em;
   }
-  .caret{
-    color: var(--stamp);
-    font-size: 9px;
-    width: 8px;
-    display: inline-block;
-    transition: transform .16s ease;
+  tr.entry .co{
+    display: block; font-family: var(--sans); font-size: 13px;
+    font-weight: 400; color: var(--ink-soft); margin-left: 16px; margin-top: 1px;
   }
+  .caret{ color: var(--stamp); font-size: 9px; width: 8px; display: inline-block; transition: transform .16s ease; }
   tr.entry.shut .caret{ transform: rotate(-90deg); }
   .nil{ color: #a8b6a9; }
 
-  /* 明細列：退到近白底、字級縮小、左側細線標示從屬 */
   tr.line{ background: #f7faf6; }
   tr.line td{
-    color: var(--ink);
-    font-size: 14.5px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--rule-fine);
+    color: var(--ink); font-size: 14.5px;
+    padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--rule-fine);
   }
   tr.line .sym{
-    display: inline-block;
-    margin-left: 9px;
-    padding-left: 13px;
-    border-left: 2px solid var(--rule);
-    color: var(--ink-soft);
-    font-family: var(--mono);
-    font-size: 14px;
+    display: inline-block; margin-left: 9px; padding-left: 13px;
+    border-left: 2px solid var(--rule); color: var(--ink-soft);
+    font-family: var(--mono); font-size: 13.5px;
   }
-  tr.line td.l:nth-child(2){ color: var(--ink-soft); }
-  tr.line .sub{
-    display: block;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    color: var(--ink-soft);
-    letter-spacing: .02em;
-    margin-top: 1px;
+  tr.line .co{
+    display: block; font-family: var(--mono); font-size: 11.5px;
+    color: var(--ink-soft); letter-spacing: .02em; margin-top: 1px;
   }
   tr.line.shut{ display: none; }
 
-  /* 簽名：報酬率下方的刻度墨條 */
-  .gauge{ display: inline-block; text-align: right; }
-  .gauge .num{ display: block; }
+  /* 報酬率刻度 */
+  .gauge{ display: block; margin-top: 2px; }
+  .gauge .num{ font-size: 13px; }
   .gauge .rule{
-    display: block;
-    height: 2px;
-    margin-top: 4px;
-    margin-left: auto;
-    background: currentColor;
-    opacity: .55;
-    min-width: 1px;
+    display: block; height: 2px; margin-top: 3px; margin-left: auto;
+    background: currentColor; opacity: .55; min-width: 1px;
     transition: width .5s cubic-bezier(.2,.7,.3,1);
   }
-  @media (prefers-reduced-motion: reduce){
-    .gauge .rule{ transition: none; }
-  }
+  @media (prefers-reduced-motion: reduce){ .gauge .rule{ transition: none; } }
 
   .pair{ display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; }
   .num-in{
-    width: 84px;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--rule);
-    font-family: var(--mono);
-    font-size: 14.5px;
-    color: var(--ink);
-    text-align: right;
-    padding: 1px 3px;
+    width: 76px; background: transparent; border: none;
+    border-bottom: 1px solid var(--rule); font-family: var(--mono);
+    font-size: 14.5px; color: var(--ink); text-align: right; padding: 1px 3px;
   }
+  .num-in.slim{ width: 62px; font-size: 12.5px; }
   .num-in:focus{ outline: none; border-bottom: 1.5px solid var(--stamp); }
   .num-in.derived{ color: var(--ink-soft); }
   .tag{
-    font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: .05em;
-    color: var(--ink-soft);
-    border: 1px solid var(--rule);
-    padding: 0 5px;
-    line-height: 17px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em;
+    color: var(--ink-soft); border: 1px solid var(--rule);
+    padding: 0 5px; line-height: 17px;
   }
   .tag.own{ color: var(--stamp); border-color: var(--stamp); }
   .ghost{
@@ -312,225 +239,44 @@
   }
   .ghost:hover{ color: var(--stamp); }
   .ghost.drop:hover{ color: var(--rise); }
-  .pending{ display: block; font-size: 11.5px; color: var(--stamp); margin-top: 2px; }
+
+  .sub{
+    display: block; font-family: var(--mono); font-size: 11.5px;
+    color: var(--ink-soft); margin-top: 2px; letter-spacing: .01em;
+  }
+  .sub b{ font-weight: 500; color: var(--cost); }
+  .sub .plus{ color: var(--rule); margin: 0 1px; }
+  .sub .pending{ color: var(--stamp); }
+  td.settled{ color: var(--stamp); }
 
   .blank td{
-    text-align: center;
-    font-family: var(--sans);
-    color: var(--ink-soft);
-    padding: 44px 16px;
-    white-space: normal;
-    border-bottom: 1px solid var(--rule-fine);
+    text-align: center; font-family: var(--sans); color: var(--ink-soft);
+    padding: 44px 16px; white-space: normal; border-bottom: 1px solid var(--rule-fine);
   }
   .blank strong{ display: block; color: var(--ink); font-weight: 500; margin-bottom: 4px; }
 
-  /* ── 登錄表單 ───────────────────────── */
-  .entry-form{
-    border: 1px solid var(--rule);
-    border-top: none;
-    background: var(--paper-lit);
-    padding: 20px;
-  }
-  .fields{
-    display: grid;
-    grid-template-columns: 112px minmax(160px, 1fr) 112px 132px;
-    gap: 16px 18px;
-    align-items: end;
-  }
-  .fields .commit{ align-self: end; }
-  .fields .f.wide{ grid-column: 1 / -1; max-width: 320px; }
-  .f label{
-    display: block;
-    font-size: 12.5px;
-    letter-spacing: .1em;
-    color: var(--ink-soft);
-    margin-bottom: 5px;
-  }
-  .f input{
-    width: 100%;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--ink);
-    font-family: var(--mono);
-    font-size: 16.5px;
-    color: var(--ink);
-    padding: 7px 2px;
-  }
-  .f input::placeholder{ color: var(--rule); }
-  .f input:focus{ outline: none; border-bottom: 2px solid var(--stamp); padding-bottom: 5px; }
-  .f input[type=date]{ font-size: 15px; }
-  .resolved{
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--sans);
-    font-size: 16.5px;
-    border-bottom: 1px solid var(--rule);
-    padding-bottom: 6px;
-  }
-  .resolved.none{ color: var(--ink-soft); }
-  /* 完稅結算 */
-  .settle{
-    margin-top: 22px;
-    border: 1px solid var(--rule);
-    border-left: 3px solid var(--stamp);
-    background: var(--paper-lit);
-    padding: 20px 22px 18px;
-  }
-  .settle h3{
-    font-family: var(--serif);
-    font-weight: 700;
-    font-size: 16px;
-    letter-spacing: .12em;
-    margin: 0 0 14px;
-  }
-  .settle dl{
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 10px 30px;
-  }
-  .settle dl > div{ display: flex; flex-direction: column; gap: 3px; }
-  .settle dt{
-    font-size: 12px;
-    letter-spacing: .08em;
-    color: var(--ink-soft);
-  }
-  .settle dd{
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 19px;
-    font-weight: 500;
-  }
-  .settle .op dd{ font-size: 16px; color: var(--ink-soft); }
-  .settle .sum{
-    margin-left: auto;
-    align-items: flex-end;
-    text-align: right;
-    padding-left: 26px;
-    border-left: 1px solid var(--rule);
-  }
-  .settle .sum dt{ color: var(--ink); }
-  .settle .sum dd{ font-size: 27px; }
-  .settle .pctlite{ font-size: 15px !important; }
-  .settle .legend{ margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--rule-fine); }
-  td.settled{ color: var(--stamp); }
-
-  .check{
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    cursor: pointer;
-    padding-bottom: 7px;
-    font-size: 14.5px;
-    user-select: none;
-  }
-  .check input{
-    appearance: none;
-    width: 17px; height: 17px;
-    flex: none;
-    border: 1px solid var(--ink);
-    background: transparent;
-    cursor: pointer;
-    display: grid;
-    place-content: center;
-  }
-  .check input:checked{ background: var(--stamp); border-color: var(--stamp); }
-  .check input:checked::after{
-    content: "✓";
-    color: var(--paper);
-    font-size: 12px;
-    line-height: 1;
-  }
-  .check b{
-    display: block;
-    font-family: var(--mono);
-    font-weight: 400;
-    font-size: 11.5px;
-    color: var(--ink-soft);
-    letter-spacing: .04em;
-  }
-  .legend{
-    font-size: 12.5px;
-    color: var(--ink-soft);
-    line-height: 1.7;
-    margin: 10px 0 0;
-  }
-  .sub-cost{
-    display: block;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    color: var(--ink-soft);
-    margin-top: 2px;
-    letter-spacing: .01em;
-  }
-  .sub-cost b{
-    font-weight: 500;
-    color: var(--cost);
-  }
-  .sub-cost .plus{ color: var(--rule); margin: 0 1px; }
-  .commit{
-    appearance: none;
-    background: var(--ink);
-    color: var(--paper);
-    border: none;
-    font-family: var(--sans);
-    font-size: 15px;
-    font-weight: 500;
-    letter-spacing: .08em;
-    padding: 11px 26px;
-    cursor: pointer;
-  }
-  .commit:hover{ background: var(--stamp); }
-  .note{
-    font-size: 13px;
-    color: var(--ink-soft);
-    line-height: 1.75;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--rule-fine);
-  }
-  .alert{
-    font-size: 13.5px;
-    color: var(--rise);
-    margin-top: 12px;
-    min-height: 19px;
-  }
+  .legend{ font-size: 12.5px; color: var(--ink-soft); line-height: 1.8; margin: 14px 0 0; }
+  .legend b{ font-weight: 500; color: var(--cost); }
 
   .colophon{
-    margin-top: 44px;
-    padding-top: 14px;
-    border-top: 1px solid var(--rule);
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--ink-soft);
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+    margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
 
-  @media (max-width: 860px){
+  @media (max-width: 900px){
     .sheet{ padding: 0 14px 72px; }
     .masthead{ padding-top: 24px; }
-    .masthead h1{ font-size: 25px; }
+    .masthead h1{ font-size: 26px; }
     .balance{ grid-template-columns: 1fr 1fr; }
-    .cell.total{ grid-column: 1 / -1; border-top: 1px solid var(--rule-fine); }
     .cell:nth-child(2){ border-right: none; }
+    .cell:nth-child(-n+2){ border-bottom: 1px solid var(--rule-fine); }
+    .cell .v{ font-size: 22px; }
+    .cell.big .v{ font-size: 25px; }
     .fields{ grid-template-columns: 1fr 1fr; gap: 14px; }
-    .fields .f.wide, .fields .commit, .fields .check{ grid-column: 1 / -1; }
+    .fields .f.wide, .fields .commit, .fields .check{ grid-column: 1 / -1; max-width: none; }
     .commit{ width: 100%; }
     .hide-sm{ display: none; }
-    .settle{ padding: 16px; }
-    .settle dl{ gap: 12px 22px; }
-    .settle .sum{
-      margin-left: 0; width: 100%; text-align: left; align-items: flex-start;
-      padding-left: 0; padding-top: 12px;
-      border-left: none; border-top: 1px solid var(--rule);
-    }
-    .settle .sum dd{ font-size: 24px; }
   }
 </style>
 </head>
@@ -551,12 +297,13 @@
       <div class="k">已領配息</div>
       <div class="v flat" id="vDiv">$0</div>
     </div>
-    <div class="cell total">
-      <div style="flex:1 1 auto">
-        <div class="k" id="kGain">損益 · 含息</div>
-        <div class="v flat" id="vGain">$0</div>
-      </div>
-      <div class="pct flat" id="vRate">0.00%</div>
+    <div class="cell big">
+      <div class="k" id="kGain">帳面損益 · 含息</div>
+      <div><span class="v flat" id="vGain">$0</span><span class="pct flat" id="vRate">0.00%</span></div>
+    </div>
+    <div class="cell big settled-cell">
+      <div class="k">實際損益 <small>全部賣出完稅後</small></div>
+      <div><span class="v flat" id="vNet">$0</span><span class="pct flat" id="vNetRate">0.00%</span></div>
     </div>
   </section>
 
@@ -567,49 +314,6 @@
     </span>
     <span id="basisNote">配息已計入損益</span>
   </div>
-
-  <div class="band">
-    <h2>持股明細</h2>
-    <span class="aside">點代號展開該檔的每一筆買進</span>
-  </div>
-
-  <div class="scroll">
-    <table>
-      <thead>
-        <tr>
-          <th class="l">代號</th>
-          <th class="l">名稱</th>
-          <th>股數</th>
-          <th class="hide-sm">買進價</th>
-          <th>手續費</th>
-          <th>成本</th>
-          <th>現價</th>
-          <th>配息</th>
-          <th>損益</th>
-          <th>報酬率</th>
-          <th>完稅金額</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="book"></tbody>
-    </table>
-  </div>
-
-  <section class="settle" id="settle">
-    <h3>全部賣出的話</h3>
-    <dl>
-      <div><dt>完稅金額</dt><dd id="sNet">$0</dd></div>
-      <div class="op"><dt>減 本金</dt><dd id="sCost">$0</dd></div>
-      <div class="op"><dt>減 買進手續費</dt><dd id="sFee">$0</dd></div>
-      <div class="op" id="sDivWrap"><dt>加 已領配息</dt><dd id="sDiv">$0</dd></div>
-      <div class="sum"><dt>實際損益</dt><dd id="sGain">$0</dd><dd class="pctlite" id="sRate">0.00%</dd></div>
-    </dl>
-    <p class="legend">
-      完稅金額＝現價賣出後實際入帳，已扣賣出手續費 0.1425% 與證交稅
-      （一般股票 0.3%、股票型 ETF 0.1%、債券 ETF 目前免徵，優惠至 2026 年底）。
-      上方表格的損益與報酬率維持帳面數字，不含任何交易成本。
-    </p>
-  </section>
 
   <div class="band"><h2>登錄一筆買進</h2></div>
 
@@ -636,7 +340,7 @@
         <input id="fDate" type="date">
       </div>
       <div class="f">
-        <label for="fFee">手續費</label>
+        <label for="fFee">買進手續費</label>
         <input id="fFee" type="number" min="0" step="1" placeholder="自動" inputmode="numeric">
       </div>
       <label class="check" for="fRegular">
@@ -651,11 +355,40 @@
     </div>
     <div class="alert" id="fAlert"></div>
     <p class="note">
-      手續費會依股數與買進價自動帶入標準費率 0.1425%（最低 20 元），勾選定期定額則為 1 元；
-      你的券商若有折扣，直接改寫這格即可。買進日決定哪幾次除息你有領到，留空則配息只能自行填寫。
-      台股慣例紅漲綠跌。
+      買進手續費依股數與買進價自動帶入標準費率 0.1425%（最低 20 元），勾選定期定額則為 1 元；
+      券商若有折扣直接改寫這格。買進日決定哪幾次除息你有領到，留空則配息只能自行填寫。
     </p>
   </section>
+
+  <div class="band">
+    <h2>持股明細</h2>
+    <span class="aside">點代號展開該檔的每一筆買進</span>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="l">代號 · 名稱</th>
+          <th>股數</th>
+          <th class="hide-sm">買進價</th>
+          <th>現價</th>
+          <th>成本</th>
+          <th>配息</th>
+          <th>損益</th>
+          <th>完稅金額</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="book"></tbody>
+    </table>
+  </div>
+
+  <p class="legend">
+    台股買進與賣出<b>各收一次手續費</b>，兩者不重複。成本欄下方是買進手續費，完稅金額下方是賣出手續費與證交稅。<br>
+    完稅金額＝現價賣出後實際入帳。實際損益＝完稅金額 − 本金 − 買進手續費（＋配息）。
+    證交稅：一般股票 0.3%、股票型 ETF 0.1%、債券 ETF 免徵（優惠至 2026 年底）。
+  </p>
 
   <footer class="colophon">
     <span>資料存於本機瀏覽器，不會離開這台裝置</span>
@@ -680,14 +413,12 @@ const shut = new Set();
 
 /* ── 工具 ───────────────────────────── */
 const money = n => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+const num = n => Math.round(n).toLocaleString("en-US");
 const pct = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
-/* 台股：漲紅跌綠 */
-const tone = n => n > 0 ? "rise" : (n < 0 ? "fall" : "flat");
+const tone = n => n > 0 ? "rise" : (n < 0 ? "fall" : "flat");   /* 台股紅漲綠跌 */
 const esc = s => String(s).replace(/[&<>"']/g,
   c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-function today(){
-  return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
-}
+const today = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 
 /* ── 報價與配息 ─────────────────────── */
 const quoteOf = c => quotes[c] || null;
@@ -704,7 +435,6 @@ function priceKind(lot){
   return (q && typeof q.close === "number") ? "auto" : "none";
 }
 
-/** 除息日需已過且不早於買進日；預告表含未來日期，不能先計入 */
 function divEarned(lot){
   if(!lot.buyDate) return 0;
   const evs = divsByCode[lot.code];
@@ -713,7 +443,6 @@ function divEarned(lot){
   return evs.reduce((s, e) =>
     (e.cash > 0 && e.exDate >= lot.buyDate && e.exDate <= t) ? s + e.cash * lot.shares : s, 0);
 }
-/** 已公告但尚未除息，僅供提示 */
 function divPending(lot){
   if(!lot.buyDate) return 0;
   const evs = divsByCode[lot.code];
@@ -721,9 +450,7 @@ function divPending(lot){
   const t = today();
   return evs.reduce((s, e) => (e.cash > 0 && e.exDate > t) ? s + e.cash * lot.shares : s, 0);
 }
-function divOf(lot){
-  return (lot.dividend !== null && lot.dividend !== undefined) ? lot.dividend : divEarned(lot);
-}
+const divOf = lot => (lot.dividend !== null && lot.dividend !== undefined) ? lot.dividend : divEarned(lot);
 function divKind(lot){
   if(lot.dividend !== null && lot.dividend !== undefined) return "own";
   if(!lot.buyDate) return "nodate";
@@ -731,47 +458,21 @@ function divKind(lot){
 }
 
 /* ── 台股交易成本 ───────────────────── */
-const FEE_RATE = 0.001425;   // 券商手續費表定費率，買賣各收一次
-const FEE_MIN  = 20;         // 一般交易的最低手續費
-const FEE_PLAN = 1;          // 定期定額手續費
+const FEE_RATE = 0.001425;   // 手續費表定費率，買進與賣出各收一次
+const FEE_MIN  = 20;
+const FEE_PLAN = 1;          // 定期定額
 
-/** 證交稅率：只在賣出時課徵 */
 function taxRate(code){
   const c = String(code).trim();
-  if(/^00/.test(c)){
-    // 債券 ETF（代號結尾 B）暫免徵，優惠至 2026/12/31
-    if(/B$/i.test(c)) return 0;
-    return 0.001;            // 股票型 ETF 0.1%
-  }
-  return 0.003;              // 一般股票 0.3%
+  if(/^00/.test(c)) return /B$/i.test(c) ? 0 : 0.001;   // 債券 ETF 免徵、股票型 ETF 0.1%
+  return 0.003;                                          // 一般股票 0.3%
 }
-function taxLabel(code){
-  const c = String(code).trim();
-  if(/^00/.test(c)) return /B$/i.test(c) ? "債券ETF 免徵" : "ETF 0.1%";
-  return "股票 0.3%";
-}
-
-/** 賣出費用明細，數字用費用色標示；免徵的標的直接寫免徵 */
-function costBreakdown(fee, tax, exempt){
-  const f = `手續費 <b>${Math.round(fee).toLocaleString("en-US")}</b>`;
-  const t = exempt
-    ? `證交稅 <b>免徵</b>`
-    : `證交稅 <b>${Math.round(tax).toLocaleString("en-US")}</b>`;
-  return `${f}<span class="plus"> ＋ </span>${t}`;
-}
-
-/** 標準手續費：無條件捨去，未滿最低金額以最低計 */
-function standardFee(amount, regular){
-  if(regular) return FEE_PLAN;
-  return Math.max(FEE_MIN, Math.floor(amount * FEE_RATE));
-}
-function buyFee(lot){
-  if(lot.fee !== null && lot.fee !== undefined) return lot.fee;
-  return standardFee(lot.shares * lot.buyPrice, lot.regular);
-}
+const standardFee = (amount, regular) =>
+  regular ? FEE_PLAN : Math.max(FEE_MIN, Math.floor(amount * FEE_RATE));
+const buyFee = lot => (lot.fee !== null && lot.fee !== undefined)
+  ? lot.fee : standardFee(lot.shares * lot.buyPrice, lot.regular);
 const feeKind = lot => (lot.fee !== null && lot.fee !== undefined) ? "own" : "auto";
 
-/** 賣出成本：手續費與證交稅分開列示 */
 function exitParts(lot, price){
   const value = price * lot.shares;
   const fee = standardFee(value, false);
@@ -781,23 +482,25 @@ function exitParts(lot, price){
 
 function calc(lot){
   const price = priceOf(lot);
-  const fee = buyFee(lot);                            // 買進手續費，單獨列示
-  const cost = lot.shares * lot.buyPrice;             // 純本金，不含手續費
+  const fee = buyFee(lot);                            // 買進手續費
+  const cost = lot.shares * lot.buyPrice;             // 純本金
   const dividend = divOf(lot);
 
-  // 帳面損益：只算價差（與配息），不扣任何交易成本
-  const spread = (price - lot.buyPrice) * lot.shares;
+  const spread = (price - lot.buyPrice) * lot.shares; // 帳面價差
   const gain = withDividend ? spread + dividend : spread;
 
-  // 完稅金額：現在賣出、扣掉賣出手續費與證交稅之後實際入帳的錢
-  const x = exitParts(lot, price);
-  const net = price * lot.shares - x.total;
+  const x = exitParts(lot, price);                    // 賣出手續費與證交稅
+  const net = price * lot.shares - x.total;           // 完稅金額
   const netGain = net - cost - fee + (withDividend ? dividend : 0);
 
   return { price, fee, cost, dividend, spread, gain,
-           sellFee: x.fee, sellTax: x.tax, exit: x.total, net, netGain,
+           sellFee: x.fee, sellTax: x.tax, net, netGain,
            rate: cost > 0 ? gain / cost * 100 : 0 };
 }
+
+/** 賣出費用明細，數字用費用色標示 */
+const sellNote = (fee, tax, exempt) =>
+  `賣出手續費 <b>${num(fee)}</b><span class="plus"> ＋ </span>證交稅 <b>${exempt ? "免徵" : num(tax)}</b>`;
 
 /* ── 載入 ───────────────────────────── */
 async function grab(url){
@@ -805,36 +508,23 @@ async function grab(url){
   if(!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
 }
-
 async function loadFeeds(){
   const el = document.getElementById("state");
   let ok = false, head = "", tail = "";
-
   try{
     const d = await grab(URL_PRICES);
     quotes = d.prices || {};
     if(d.tradeDate && d.count > 0){
-      ok = true;
-      head = `收盤 ${esc(d.tradeDate)}`;
+      ok = true; head = `收盤 ${esc(d.tradeDate)}`;
       tail = `${d.count.toLocaleString("en-US")} 檔自動報價`;
-    } else {
-      head = "尚無報價";
-      tail = "等第一次排程更新";
-    }
-  }catch(e){
-    quotes = {};
-    head = "報價讀不到";
-    tail = "現價請自行填寫";
-  }
-
+    } else { head = "尚無報價"; tail = "等第一次排程更新"; }
+  }catch(e){ quotes = {}; head = "報價讀不到"; tail = "現價請自行填寫"; }
   try{
     const d = await grab(URL_DIVS);
     divsByCode = {};
     (d.events || []).forEach(e => (divsByCode[e.code] = divsByCode[e.code] || []).push(e));
-    const n = (d.events || []).length;
-    if(n) tail += ` · 除息 ${n} 筆`;
+    if((d.events || []).length) tail += ` · 除息 ${d.events.length} 筆`;
   }catch(e){ divsByCode = {}; }
-
   el.className = "quote-state" + (ok ? "" : " off");
   el.innerHTML = `<b>${head}</b>${esc(tail)}`;
 }
@@ -856,10 +546,8 @@ function upgrade(list){
   });
 }
 function restore(){
-  try{
-    const raw = localStorage.getItem(KEY_LOTS);
-    lots = raw ? upgrade(JSON.parse(raw)) : [];
-  }catch(e){ lots = []; }
+  try{ const raw = localStorage.getItem(KEY_LOTS); lots = raw ? upgrade(JSON.parse(raw)) : []; }
+  catch(e){ lots = []; }
   try{ withDividend = localStorage.getItem(KEY_BASIS) !== "price"; }
   catch(e){ withDividend = true; }
 }
@@ -876,39 +564,25 @@ function paint(){
   let cost = 0, dividend = 0, gain = 0, fee = 0, net = 0;
   lots.forEach(l => {
     const c = calc(l);
-    cost += c.cost; dividend += c.dividend; gain += c.gain;
-    fee += c.fee;   net += c.net;
+    cost += c.cost; dividend += c.dividend; gain += c.gain; fee += c.fee; net += c.net;
   });
   const rate = cost > 0 ? gain / cost * 100 : 0;
+  const netGain = net - cost - fee + (withDividend ? dividend : 0);
+  const netRate = cost > 0 ? netGain / cost * 100 : 0;
 
-  /* 全部賣出的實際損益：完稅金額 − 本金 − 買進手續費 + 配息 */
-  const settleGain = net - cost - fee + (withDividend ? dividend : 0);
-  const settleRate = cost > 0 ? settleGain / cost * 100 : 0;
-  const S = (id, txt, cls) => {
+  const set = (id, txt, cls) => {
     const el = document.getElementById(id);
     el.textContent = txt;
-    if(cls !== undefined) el.className = cls;
+    if(cls) el.className = cls;
   };
-  S("sNet", money(net));
-  S("sCost", money(cost));
-  S("sFee", money(fee));
-  S("sDiv", money(dividend));
-  document.getElementById("sDivWrap").style.display = withDividend ? "" : "none";
-  S("sGain", money(settleGain), tone(settleGain));
-  S("sRate", pct(settleRate), "pctlite " + tone(settleGain));
+  set("vCost", money(cost));
+  set("vDiv", money(dividend));
+  set("vGain", money(gain), "v " + tone(gain));
+  set("vRate", pct(rate), "pct " + tone(rate));
+  set("vNet", money(netGain), "v " + tone(netGain));
+  set("vNetRate", pct(netRate), "pct " + tone(netRate));
 
-  document.getElementById("vCost").textContent = money(cost);
-  document.getElementById("vDiv").textContent = money(dividend);
-
-  const g = document.getElementById("vGain");
-  g.textContent = money(gain);
-  g.className = "v " + tone(gain);
-
-  const r = document.getElementById("vRate");
-  r.textContent = pct(rate);
-  r.className = "pct " + tone(rate);
-
-  document.getElementById("kGain").textContent = withDividend ? "損益 · 含息" : "損益 · 只看價差";
+  document.getElementById("kGain").textContent = withDividend ? "帳面損益 · 含息" : "帳面損益 · 只算價差";
   document.getElementById("bTotal").setAttribute("aria-pressed", String(withDividend));
   document.getElementById("bPrice").setAttribute("aria-pressed", String(!withDividend));
   document.getElementById("basisNote").textContent =
@@ -916,10 +590,9 @@ function paint(){
 
   const book = document.getElementById("book");
   book.innerHTML = "";
-
   if(lots.length === 0){
-    book.innerHTML = `<tr class="blank"><td colspan="12">
-      <strong>存摺還是空的</strong>在下方登錄第一筆買進，這裡就會開始記帳。</td></tr>`;
+    book.innerHTML = `<tr class="blank"><td colspan="9">
+      <strong>存摺還是空的</strong>在上方登錄第一筆買進，這裡就會開始記帳。</td></tr>`;
     return;
   }
 
@@ -927,14 +600,13 @@ function paint(){
   const order = [], group = {};
   lots.forEach(l => {
     if(!group[l.code]){
-      group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, fee:0,
-                        spread:0, dividend:0, net:0, sellFee:0, sellTax:0,
-                        prices:[], owned:0, rows:[] };
+      group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, fee:0, spread:0,
+                        dividend:0, net:0, sellFee:0, sellTax:0, prices:[], owned:0, rows:[] };
       order.push(l.code);
     }
     const c = calc(l), G = group[l.code];
-    G.shares += l.shares; G.cost += c.cost; G.fee += c.fee;
-    G.spread += c.spread; G.dividend += c.dividend; G.net += c.net;
+    G.shares += l.shares; G.cost += c.cost; G.fee += c.fee; G.spread += c.spread;
+    G.dividend += c.dividend; G.net += c.net;
     G.sellFee += c.sellFee; G.sellTax += c.sellTax;
     G.prices.push(c.price);
     if(priceKind(l) === "own") G.owned++;
@@ -943,7 +615,6 @@ function paint(){
     if(fresh) G.name = fresh;
   });
 
-  /* 刻度以自己持股中最大報酬率為基準，至少 8% */
   const rates = order.map(c => {
     const G = group[c];
     const gg = G.spread + (withDividend ? G.dividend : 0);
@@ -957,12 +628,12 @@ function paint(){
     const rr = G.cost > 0 ? gg / G.cost * 100 : 0;
     const closed = shut.has(code);
     const bar = Math.min(100, Math.abs(rr) / span * 100);
+    const avg = G.shares > 0 ? G.cost / G.shares : 0;
+    const exempt = taxRate(code) === 0;
 
-    /* 該檔的現價：各筆一致就顯示該值，被個別改過就標記混合 */
     const mixed = new Set(G.prices).size > 1;
-    const shown = mixed ? "" : G.prices[0];
     const gTag = G.owned > 0
-      ? `<span class="tag own">${G.owned === G.rows.length ? "手動" : "部分手動"}</span>` +
+      ? `<span class="tag own">${G.owned === G.rows.length ? "手動" : "部分"}</span>` +
         `<button class="ghost" data-rgp="${esc(code)}" title="整檔還原自動報價" aria-label="整檔還原自動報價">↺</button>`
       : `<span class="tag">自動</span>`;
 
@@ -970,30 +641,27 @@ function paint(){
     tr.className = "entry" + (closed ? " shut" : "");
     tr.tabIndex = 0;
     tr.innerHTML = `
-      <td class="l"><span class="sym"><span class="caret">▼</span>${esc(G.code)}</span></td>
-      <td class="l">${esc(G.name)}</td>
+      <td class="l"><span class="sym"><span class="caret">▼</span>${esc(G.code)}</span>
+        <span class="co">${esc(G.name)}</span></td>
       <td>${G.shares.toLocaleString("en-US")}</td>
-      <td class="hide-sm nil">—</td>
-      <td>${money(G.fee)}</td>
-      <td>${money(G.cost)}</td>
+      <td class="hide-sm">${avg.toFixed(2)}<span class="sub">平均</span></td>
       <td><span class="pair">
         <input class="num-in ${G.owned ? "" : "derived"}" type="number" step="0.01"
-               value="${shown}" ${mixed ? 'placeholder="混合"' : ""}
+               value="${mixed ? "" : G.prices[0]}" ${mixed ? 'placeholder="混合"' : ""}
                data-gprice="${esc(code)}" inputmode="decimal"
                aria-label="${esc(G.code)} 現價，改動會套用到所有買進紀錄">${gTag}</span></td>
+      <td>${money(G.cost)}<span class="sub">手續費 <b>${num(G.fee)}</b></span></td>
       <td class="${G.dividend > 0 ? "" : "nil"}">${money(G.dividend)}</td>
-      <td class="${tone(gg)}">${money(gg)}</td>
-      <td class="${tone(rr)}"><span class="gauge">
+      <td class="${tone(gg)}">${money(gg)}<span class="gauge">
         <span class="num">${pct(rr)}</span>
         <span class="rule" data-bar="${bar}" style="width:${firstPaint ? 0 : bar}%"></span>
       </span></td>
-      <td class="settled">${money(G.net)}
-        <span class="sub-cost">${costBreakdown(G.sellFee, G.sellTax, taxRate(G.code) === 0)}</span></td>
+      <td class="settled">${money(G.net)}<span class="sub">${sellNote(G.sellFee, G.sellTax, exempt)}</span></td>
       <td></td>`;
     const flip = () => { shut.has(code) ? shut.delete(code) : shut.add(code); paint(); };
     tr.addEventListener("click", flip);
     tr.addEventListener("keydown", e => {
-      if(e.target !== tr) return;              // 焦點在輸入框或按鈕時不觸發
+      if(e.target !== tr) return;
       if(e.key === "Enter" || e.key === " "){ e.preventDefault(); flip(); }
     });
     book.appendChild(tr);
@@ -1001,54 +669,47 @@ function paint(){
     G.rows.forEach(l => {
       const c = calc(l);
       const pk = priceKind(l), dk = divKind(l), fk = feeKind(l);
-      const fTag = fk === "own"
-        ? `<span class="tag own">手動</span><button class="ghost" data-rf="${l.id}" title="還原標準費率" aria-label="還原標準費率">↺</button>`
-        : `<span class="tag">標準</span>`;
       const pTag = pk === "own"
         ? `<span class="tag own">手動</span><button class="ghost" data-rp="${l.id}" title="還原自動報價" aria-label="還原自動報價">↺</button>`
         : `<span class="tag">${pk === "auto" ? "自動" : "無價"}</span>`;
       const dTag = dk === "own"
         ? `<span class="tag own">手動</span><button class="ghost" data-rd="${l.id}" title="還原自動計算" aria-label="還原自動計算">↺</button>`
         : `<span class="tag">${dk === "auto" ? "自動" : (dk === "nodate" ? "缺日期" : "無紀錄")}</span>`;
+      const fReset = fk === "own"
+        ? `<button class="ghost" data-rf="${l.id}" title="還原標準費率" aria-label="還原標準費率">↺</button>` : "";
       const soon = divPending(l);
       const soonNote = (soon > 0 && dk !== "own")
-        ? `<span class="pending">待除息 ${money(soon)}</span>` : "";
+        ? `<span class="sub pending">待除息 ${money(soon)}</span>` : "";
 
       const row = document.createElement("tr");
       row.className = "line" + (closed ? " shut" : "");
       row.innerHTML = `
-        <td class="l"><span class="sym">${esc(l.code)}</span></td>
-        <td class="l">${esc(l.name)}<span class="sub">${l.buyDate ? esc(l.buyDate) : "未填買進日"}${l.regular ? " · 定期定額" : ""}</span></td>
+        <td class="l"><span class="sym">${esc(l.code)}</span>
+          <span class="co">${l.buyDate ? esc(l.buyDate) : "未填買進日"}${l.regular ? " · 定期定額" : ""}</span></td>
         <td>${l.shares.toLocaleString("en-US")}</td>
         <td class="hide-sm">${l.buyPrice.toFixed(2)}</td>
         <td><span class="pair">
-          <input class="num-in ${fk === "auto" ? "derived" : ""}" type="number" step="1" min="0"
-                 value="${c.fee}" data-fee="${l.id}" inputmode="numeric" aria-label="買進手續費">${fTag}</span></td>
-        <td>${money(c.cost)}</td>
-        <td><span class="pair">
           <input class="num-in ${pk === "auto" ? "derived" : ""}" type="number" step="0.01"
                  value="${c.price}" data-price="${l.id}" inputmode="decimal" aria-label="現價">${pTag}</span></td>
+        <td>${money(c.cost)}<span class="sub">手續費
+          <input class="num-in slim ${fk === "auto" ? "derived" : ""}" type="number" step="1" min="0"
+                 value="${c.fee}" data-fee="${l.id}" inputmode="numeric" aria-label="買進手續費">${fReset}</span></td>
         <td><span class="pair">
           <input class="num-in ${dk !== "own" ? "derived" : ""}" type="number" step="1"
                  value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal" aria-label="配息">${dTag}</span>
           ${soonNote}</td>
-        <td class="${tone(c.gain)}">${money(c.gain)}</td>
-        <td class="${tone(c.gain)}">${pct(c.rate)}</td>
-        <td class="settled">${money(c.net)}
-          <span class="sub-cost">${costBreakdown(c.sellFee, c.sellTax, taxRate(l.code) === 0)}</span></td>
+        <td class="${tone(c.gain)}">${money(c.gain)}<span class="gauge"><span class="num">${pct(c.rate)}</span></span></td>
+        <td class="settled">${money(c.net)}<span class="sub">${sellNote(c.sellFee, c.sellTax, exempt)}</span></td>
         <td><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
       book.appendChild(row);
     });
   });
 
   wire();
-
   if(firstPaint){
     firstPaint = false;
     requestAnimationFrame(() => {
-      document.querySelectorAll(".gauge .rule").forEach(el => {
-        el.style.width = el.dataset.bar + "%";
-      });
+      document.querySelectorAll(".gauge .rule").forEach(el => { el.style.width = el.dataset.bar + "%"; });
     });
   }
   document.getElementById("stampTime").textContent = "檢視於 " + today();
@@ -1062,19 +723,11 @@ function wire(){
     i.addEventListener("keydown", e => e.stopPropagation());
     i.addEventListener("change", e => {
       const t = e.target;
-
-      /* 統整列的現價：套用到該檔所有買進紀錄 */
-      if(t.dataset.gprice !== undefined){
-        const code = t.dataset.gprice;
-        const raw = t.value.trim();
-        const v = parseFloat(raw);
-        lots.forEach(l => {
-          if(l.code === code) l.override = (raw === "" || isNaN(v)) ? null : v;
-        });
-        keep(); paint();
-        return;
+      if(t.dataset.gprice !== undefined){          // 統整列現價：套用到整檔
+        const code = t.dataset.gprice, raw = t.value.trim(), v = parseFloat(raw);
+        lots.forEach(l => { if(l.code === code) l.override = (raw === "" || isNaN(v)) ? null : v; });
+        keep(); paint(); return;
       }
-
       const lot = findLot(t.dataset.price || t.dataset.div || t.dataset.fee);
       if(!lot) return;
       const v = parseFloat(t.value);
@@ -1111,9 +764,7 @@ const fManualWrap = document.getElementById("fManualWrap");
 const fManual = document.getElementById("fManual");
 const fAlert = document.getElementById("fAlert");
 
-let feeTouched = false;   // 使用者手動改過就不再覆寫
-
-/** 依目前輸入的股數與價格推算標準手續費 */
+let feeTouched = false;
 function suggestFee(){
   if(feeTouched) return;
   const s = parseFloat(fShares.value), p = parseFloat(fPrice.value);
@@ -1153,8 +804,8 @@ document.getElementById("fAdd").addEventListener("click", () => {
   const buyPrice = parseFloat(fPrice.value);
   const buyDate = document.getElementById("fDate").value || null;
   const regular = fRegular.checked;
-  const feeRaw = fFee.value.trim();
-  const fee = feeRaw === "" ? null : Math.max(0, parseFloat(feeRaw));
+  const raw = fFee.value.trim();
+  const fee = raw === "" ? null : Math.max(0, parseFloat(raw));
 
   if(!code){ fAlert.textContent = "還缺代號"; fCode.focus(); return; }
   if(!shares || shares <= 0){ fAlert.textContent = "股數要大於 0"; return; }
@@ -1164,29 +815,20 @@ document.getElementById("fAdd").addEventListener("click", () => {
 
   lots.push({
     id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
-    code,
-    name: nameOf(code) || fManual.value.trim() || code,
+    code, name: nameOf(code) || fManual.value.trim() || code,
     shares, buyPrice, buyDate, regular, fee,
     override: null, dividend: null
   });
   keep(); paint();
 
-  fCode.value = "";
-  fShares.value = "";
-  fPrice.value = "";
-  fFee.value = "";
-  fManual.value = "";
+  fCode.value = ""; fShares.value = ""; fPrice.value = ""; fFee.value = ""; fManual.value = "";
   feeTouched = false;
   resolveName();
   fCode.focus();
 });
 
-document.getElementById("bTotal").addEventListener("click", () => {
-  withDividend = true; keepBasis(); paint();
-});
-document.getElementById("bPrice").addEventListener("click", () => {
-  withDividend = false; keepBasis(); paint();
-});
+document.getElementById("bTotal").addEventListener("click", () => { withDividend = true; keepBasis(); paint(); });
+document.getElementById("bPrice").addEventListener("click", () => { withDividend = false; keepBasis(); paint(); });
 
 /* ── 啟動 ───────────────────────────── */
 (async function start(){

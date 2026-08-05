@@ -332,10 +332,12 @@
   }
   .fields{
     display: grid;
-    grid-template-columns: 108px minmax(150px,1fr) 96px 106px 148px auto;
-    gap: 14px;
+    grid-template-columns: 112px minmax(160px, 1fr) 112px 132px;
+    gap: 16px 18px;
     align-items: end;
   }
+  .fields .commit{ align-self: end; }
+  .fields .f.wide{ grid-column: 1 / -1; max-width: 320px; }
   .f label{
     display: block;
     font-size: 11px;
@@ -367,6 +369,53 @@
     padding-bottom: 6px;
   }
   .resolved.none{ color: var(--ink-soft); }
+  .check{
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    cursor: pointer;
+    padding-bottom: 7px;
+    font-size: 13px;
+    user-select: none;
+  }
+  .check input{
+    appearance: none;
+    width: 17px; height: 17px;
+    flex: none;
+    border: 1px solid var(--ink);
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+  }
+  .check input:checked{ background: var(--stamp); border-color: var(--stamp); }
+  .check input:checked::after{
+    content: "✓";
+    color: var(--paper);
+    font-size: 12px;
+    line-height: 1;
+  }
+  .check b{
+    display: block;
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    letter-spacing: .04em;
+  }
+  .legend{
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    margin: 10px 0 0;
+  }
+  .sub-cost{
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 1px;
+  }
   .commit{
     appearance: none;
     background: var(--ink);
@@ -415,8 +464,8 @@
     .balance{ grid-template-columns: 1fr 1fr; }
     .cell.total{ grid-column: 1 / -1; border-top: 1px solid var(--rule-fine); }
     .cell:nth-child(2){ border-right: none; }
-    .fields{ grid-template-columns: 1fr 1fr; }
-    .fields .f.wide, .fields .commit{ grid-column: 1 / -1; }
+    .fields{ grid-template-columns: 1fr 1fr; gap: 14px; }
+    .fields .f.wide, .fields .commit, .fields .check{ grid-column: 1 / -1; }
     .commit{ width: 100%; }
     .hide-sm{ display: none; }
   }
@@ -469,8 +518,9 @@
           <th class="l">名稱</th>
           <th>股數</th>
           <th class="hide-sm">買進價</th>
+          <th>手續費</th>
+          <th>成本</th>
           <th>現價</th>
-          <th class="hide-sm">成本</th>
           <th>配息</th>
           <th>損益</th>
           <th>報酬率</th>
@@ -480,6 +530,10 @@
       <tbody id="book"></tbody>
     </table>
   </div>
+  <p class="legend">
+    成本已含買進手續費。損益以現價估算賣出，扣掉賣出手續費與證交稅
+    （一般股票 0.3%、股票型 ETF 0.1%、債券 ETF 目前免徵）。
+  </p>
 
   <div class="band"><h2>登錄一筆買進</h2></div>
 
@@ -505,6 +559,14 @@
         <label for="fDate">買進日</label>
         <input id="fDate" type="date">
       </div>
+      <div class="f">
+        <label for="fFee">手續費</label>
+        <input id="fFee" type="number" min="0" step="1" placeholder="自動" inputmode="numeric">
+      </div>
+      <label class="check" for="fRegular">
+        <input id="fRegular" type="checkbox">
+        <span>定期定額<b>手續費 1 元</b></span>
+      </label>
       <button class="commit" id="fAdd">登錄</button>
       <div class="f wide" id="fManualWrap" style="display:none">
         <label for="fManual">查無此代號，請自行填寫名稱</label>
@@ -513,8 +575,9 @@
     </div>
     <div class="alert" id="fAlert"></div>
     <p class="note">
-      買進日決定哪幾次除息你有領到，留空則配息只能自行填寫。現價與配息都會自動帶入，
-      直接在表格覆寫即為手動值，按 ↺ 還原成自動。台股慣例紅漲綠跌。
+      手續費會依股數與買進價自動帶入標準費率 0.1425%（最低 20 元），勾選定期定額則為 1 元；
+      你的券商若有折扣，直接改寫這格即可。買進日決定哪幾次除息你有領到，留空則配息只能自行填寫。
+      台股慣例紅漲綠跌。
     </p>
   </section>
 
@@ -591,13 +654,55 @@ function divKind(lot){
   return divEarned(lot) > 0 ? "auto" : "empty";
 }
 
+/* ── 台股交易成本 ───────────────────── */
+const FEE_RATE = 0.001425;   // 券商手續費表定費率，買賣各收一次
+const FEE_MIN  = 20;         // 一般交易的最低手續費
+const FEE_PLAN = 1;          // 定期定額手續費
+
+/** 證交稅率：只在賣出時課徵 */
+function taxRate(code){
+  const c = String(code).trim();
+  if(/^00/.test(c)){
+    // 債券 ETF（代號結尾 B）暫免徵，優惠至 2026/12/31
+    if(/B$/i.test(c)) return 0;
+    return 0.001;            // 股票型 ETF 0.1%
+  }
+  return 0.003;              // 一般股票 0.3%
+}
+function taxLabel(code){
+  const c = String(code).trim();
+  if(/^00/.test(c)) return /B$/i.test(c) ? "債券ETF 免徵" : "ETF 0.1%";
+  return "股票 0.3%";
+}
+
+/** 標準手續費：無條件捨去，未滿最低金額以最低計 */
+function standardFee(amount, regular){
+  if(regular) return FEE_PLAN;
+  return Math.max(FEE_MIN, Math.floor(amount * FEE_RATE));
+}
+function buyFee(lot){
+  if(lot.fee !== null && lot.fee !== undefined) return lot.fee;
+  return standardFee(lot.shares * lot.buyPrice, lot.regular);
+}
+const feeKind = lot => (lot.fee !== null && lot.fee !== undefined) ? "own" : "auto";
+
+/** 賣出成本估算：手續費 + 證交稅 */
+function exitCost(lot, price){
+  const value = price * lot.shares;
+  return standardFee(value, false) + Math.floor(value * taxRate(lot.code));
+}
+
 function calc(lot){
   const price = priceOf(lot);
-  const cost = lot.shares * lot.buyPrice;
-  const spread = (price - lot.buyPrice) * lot.shares;
+  const fee = buyFee(lot);
+  const cost = lot.shares * lot.buyPrice + fee;      // 買進總支出
+  const exit = exitCost(lot, price);                  // 賣出估算成本
+  const proceeds = price * lot.shares - exit;         // 賣出可得
+  const spread = proceeds - cost;
   const dividend = divOf(lot);
   const gain = withDividend ? spread + dividend : spread;
-  return { price, cost, spread, dividend, gain, rate: cost > 0 ? gain / cost * 100 : 0 };
+  return { price, fee, cost, exit, proceeds, spread, dividend, gain,
+           rate: cost > 0 ? gain / cost * 100 : 0 };
 }
 
 /* ── 載入 ───────────────────────────── */
@@ -651,6 +756,8 @@ function upgrade(list){
     }
     if(!Object.prototype.hasOwnProperty.call(o, "dividend")) o.dividend = null;
     if(!Object.prototype.hasOwnProperty.call(o, "buyDate")) o.buyDate = null;
+    if(!Object.prototype.hasOwnProperty.call(o, "fee")) o.fee = null;
+    if(!Object.prototype.hasOwnProperty.call(o, "regular")) o.regular = false;
     return o;
   });
 }
@@ -697,7 +804,7 @@ function paint(){
   book.innerHTML = "";
 
   if(lots.length === 0){
-    book.innerHTML = `<tr class="blank"><td colspan="10">
+    book.innerHTML = `<tr class="blank"><td colspan="11">
       <strong>存摺還是空的</strong>在下方登錄第一筆買進，這裡就會開始記帳。</td></tr>`;
     return;
   }
@@ -706,12 +813,13 @@ function paint(){
   const order = [], group = {};
   lots.forEach(l => {
     if(!group[l.code]){
-      group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, value:0, dividend:0, rows:[] };
+      group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, fee:0,
+                        exit:0, proceeds:0, dividend:0, rows:[] };
       order.push(l.code);
     }
     const c = calc(l), G = group[l.code];
-    G.shares += l.shares; G.cost += c.cost;
-    G.value += c.price * l.shares; G.dividend += c.dividend;
+    G.shares += l.shares; G.cost += c.cost; G.fee += c.fee;
+    G.exit += c.exit; G.proceeds += c.proceeds; G.dividend += c.dividend;
     G.rows.push(l);
     const fresh = nameOf(l.code);
     if(fresh) G.name = fresh;
@@ -720,14 +828,14 @@ function paint(){
   /* 刻度以自己持股中最大報酬率為基準，至少 8% */
   const rates = order.map(c => {
     const G = group[c];
-    const gg = (G.value - G.cost) + (withDividend ? G.dividend : 0);
+    const gg = (G.proceeds - G.cost) + (withDividend ? G.dividend : 0);
     return G.cost > 0 ? Math.abs(gg / G.cost * 100) : 0;
   });
   const span = Math.max(8, ...rates);
 
   order.forEach(code => {
     const G = group[code];
-    const gg = (G.value - G.cost) + (withDividend ? G.dividend : 0);
+    const gg = (G.proceeds - G.cost) + (withDividend ? G.dividend : 0);
     const rr = G.cost > 0 ? gg / G.cost * 100 : 0;
     const closed = shut.has(code);
     const bar = Math.min(100, Math.abs(rr) / span * 100);
@@ -740,8 +848,9 @@ function paint(){
       <td class="l">${esc(G.name)}</td>
       <td>${G.shares.toLocaleString("en-US")}</td>
       <td class="hide-sm nil">—</td>
+      <td>${money(G.fee)}<span class="sub-cost">賣出估 ${money(G.exit)}</span></td>
+      <td>${money(G.cost)}</td>
       <td class="nil">—</td>
-      <td class="hide-sm">${money(G.cost)}</td>
       <td class="${G.dividend > 0 ? "" : "nil"}">${money(G.dividend)}</td>
       <td class="${tone(gg)}">${money(gg)}</td>
       <td class="${tone(rr)}"><span class="gauge">
@@ -758,7 +867,10 @@ function paint(){
 
     G.rows.forEach(l => {
       const c = calc(l);
-      const pk = priceKind(l), dk = divKind(l);
+      const pk = priceKind(l), dk = divKind(l), fk = feeKind(l);
+      const fTag = fk === "own"
+        ? `<span class="tag own">手動</span><button class="ghost" data-rf="${l.id}" title="還原標準費率" aria-label="還原標準費率">↺</button>`
+        : `<span class="tag">標準</span>`;
       const pTag = pk === "own"
         ? `<span class="tag own">手動</span><button class="ghost" data-rp="${l.id}" title="還原自動報價" aria-label="還原自動報價">↺</button>`
         : `<span class="tag">${pk === "auto" ? "自動" : "無價"}</span>`;
@@ -773,13 +885,17 @@ function paint(){
       row.className = "line" + (closed ? " shut" : "");
       row.innerHTML = `
         <td class="l"><span class="sym">${esc(l.code)}</span></td>
-        <td class="l">${esc(l.name)}<span class="sub">${l.buyDate ? esc(l.buyDate) : "未填買進日"}</span></td>
+        <td class="l">${esc(l.name)}<span class="sub">${l.buyDate ? esc(l.buyDate) : "未填買進日"}${l.regular ? " · 定期定額" : ""}</span></td>
         <td>${l.shares.toLocaleString("en-US")}</td>
         <td class="hide-sm">${l.buyPrice.toFixed(2)}</td>
         <td><span class="pair">
+          <input class="num-in ${fk === "auto" ? "derived" : ""}" type="number" step="1" min="0"
+                 value="${c.fee}" data-fee="${l.id}" inputmode="numeric" aria-label="買進手續費">${fTag}</span>
+          <span class="sub-cost">賣出估 ${money(c.exit)} · ${taxLabel(l.code)}</span></td>
+        <td>${money(c.cost)}</td>
+        <td><span class="pair">
           <input class="num-in ${pk === "auto" ? "derived" : ""}" type="number" step="0.01"
                  value="${c.price}" data-price="${l.id}" inputmode="decimal" aria-label="現價">${pTag}</span></td>
-        <td class="hide-sm">${money(c.cost)}</td>
         <td><span class="pair">
           <input class="num-in ${dk !== "own" ? "derived" : ""}" type="number" step="1"
                  value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal" aria-label="配息">${dTag}</span>
@@ -810,11 +926,13 @@ function wire(){
   document.querySelectorAll(".num-in").forEach(i => {
     i.addEventListener("click", e => e.stopPropagation());
     i.addEventListener("change", e => {
-      const t = e.target, lot = findLot(t.dataset.price || t.dataset.div);
+      const t = e.target;
+      const lot = findLot(t.dataset.price || t.dataset.div || t.dataset.fee);
       if(!lot) return;
       const v = parseFloat(t.value);
-      if(t.dataset.price) lot.override = isNaN(v) ? null : v;
-      else lot.dividend = isNaN(v) ? null : v;
+      if(t.dataset.price)      lot.override = isNaN(v) ? null : v;
+      else if(t.dataset.fee)   lot.fee = isNaN(v) ? null : Math.max(0, v);
+      else                     lot.dividend = isNaN(v) ? null : v;
       keep(); paint();
     });
   });
@@ -822,6 +940,7 @@ function wire(){
     b.addEventListener("click", e => { e.stopPropagation(); fn(e.currentTarget); }));
   hook("[data-rp]", b => { const l = findLot(b.dataset.rp); if(l){ l.override = null; keep(); paint(); } });
   hook("[data-rd]", b => { const l = findLot(b.dataset.rd); if(l){ l.dividend = null; keep(); paint(); } });
+  hook("[data-rf]", b => { const l = findLot(b.dataset.rf); if(l){ l.fee = null; keep(); paint(); } });
   hook("[data-del]", b => {
     lots = lots.filter(x => String(x.id) !== String(b.dataset.del));
     keep(); paint();
@@ -831,9 +950,27 @@ function wire(){
 /* ── 登錄表單 ───────────────────────── */
 const fCode = document.getElementById("fCode");
 const fName = document.getElementById("fName");
+const fShares = document.getElementById("fShares");
+const fPrice = document.getElementById("fPrice");
+const fFee = document.getElementById("fFee");
+const fRegular = document.getElementById("fRegular");
 const fManualWrap = document.getElementById("fManualWrap");
 const fManual = document.getElementById("fManual");
 const fAlert = document.getElementById("fAlert");
+
+let feeTouched = false;   // 使用者手動改過就不再覆寫
+
+/** 依目前輸入的股數與價格推算標準手續費 */
+function suggestFee(){
+  if(feeTouched) return;
+  const s = parseFloat(fShares.value), p = parseFloat(fPrice.value);
+  if(!s || !p || s <= 0 || p <= 0){ fFee.value = ""; return; }
+  fFee.value = standardFee(s * p, fRegular.checked);
+}
+fShares.addEventListener("input", suggestFee);
+fPrice.addEventListener("input", suggestFee);
+fRegular.addEventListener("change", () => { feeTouched = false; suggestFee(); });
+fFee.addEventListener("input", () => { feeTouched = fFee.value.trim() !== ""; });
 
 function resolveName(){
   const code = fCode.value.trim();
@@ -859,28 +996,34 @@ fCode.addEventListener("input", resolveName);
 
 document.getElementById("fAdd").addEventListener("click", () => {
   const code = fCode.value.trim();
-  const shares = parseFloat(document.getElementById("fShares").value);
-  const buyPrice = parseFloat(document.getElementById("fPrice").value);
+  const shares = parseFloat(fShares.value);
+  const buyPrice = parseFloat(fPrice.value);
   const buyDate = document.getElementById("fDate").value || null;
+  const regular = fRegular.checked;
+  const feeRaw = fFee.value.trim();
+  const fee = feeRaw === "" ? null : Math.max(0, parseFloat(feeRaw));
 
   if(!code){ fAlert.textContent = "還缺代號"; fCode.focus(); return; }
   if(!shares || shares <= 0){ fAlert.textContent = "股數要大於 0"; return; }
   if(!buyPrice || buyPrice <= 0){ fAlert.textContent = "買進價要大於 0"; return; }
+  if(fee !== null && isNaN(fee)){ fAlert.textContent = "手續費請填數字，或留空讓它自動算"; return; }
   fAlert.textContent = "";
 
   lots.push({
     id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
     code,
     name: nameOf(code) || fManual.value.trim() || code,
-    shares, buyPrice, buyDate,
+    shares, buyPrice, buyDate, regular, fee,
     override: null, dividend: null
   });
   keep(); paint();
 
   fCode.value = "";
-  document.getElementById("fShares").value = "";
-  document.getElementById("fPrice").value = "";
+  fShares.value = "";
+  fPrice.value = "";
+  fFee.value = "";
   fManual.value = "";
+  feeTouched = false;
   resolveName();
   fCode.focus();
 });

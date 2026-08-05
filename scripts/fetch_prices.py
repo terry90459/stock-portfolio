@@ -3,7 +3,8 @@
 抓取台股當日收盤行情，輸出成 prices.json 供前端頁面讀取。
 
 資料來源：
-  - 上市（TWSE）：https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+  - 上市：證交所 OpenAPI 與官網 API 都抓，取交易日較新者
+    （OpenAPI 實測落後一個交易日；官網路徑改版過，列多個候選逐個試）
   - 上櫃（TPEx）：https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes
 
 兩個來源都是公開 OpenAPI，不需要金鑰。任一來源失敗不會中斷整個流程，
@@ -19,11 +20,23 @@ from datetime import datetime, timezone, timedelta
 TWSE_URL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
 
 # 上市依序嘗試，取交易日最新的一份。
-# OpenAPI 版本觀察到會落後一個交易日，官網版本據稱有當日資料，兩邊都抓再比。
-TWSE_SOURCES = [
-    ("OpenAPI", TWSE_URL),
-    ("官網open_data", "https://www.twse.com.tw/exchangeReport/STOCK_DAY_ALL?response=open_data"),
-]
+# OpenAPI 版本實測會落後一個交易日；官網 API 路徑改版過數次，列多個候選逐個試。
+TWSE_OPENAPI = ("OpenAPI", TWSE_URL)
+
+
+def twse_site_sources():
+    """證交所官網候選網址，MI_INDEX 需要帶日期。"""
+    d = datetime.now(TPE).strftime("%Y%m%d")
+    return [
+        ("官網rwd/STOCK_DAY_ALL",
+         "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json"),
+        ("官網STOCK_DAY_ALL",
+         "https://www.twse.com.tw/exchangeReport/STOCK_DAY_ALL?response=json"),
+        ("官網rwd/MI_INDEX",
+         f"https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={d}&type=ALL&response=json"),
+        ("官網MI_INDEX",
+         f"https://www.twse.com.tw/exchangeReport/MI_INDEX?date={d}&type=ALL&response=json"),
+    ]
 
 # 櫃買中心的端點名稱歷年改過，依序嘗試，取第一個能解析出資料的
 TPEX_URLS = [
@@ -61,8 +74,16 @@ def to_float(value):
 
 
 def roc_to_iso(roc):
-    """民國日期字串 '1150731' 轉成 '2026-07-31'。"""
-    digits = "".join(ch for ch in str(roc) if ch.isdigit())
+    """民國 '1150731' → '2026-07-31'；已是西元格式（20260805、2026-08-05）則原樣轉換。"""
+    if not roc:
+        return None
+    text = str(roc).strip()
+    if len(text) == 10 and text[4] in "-/":
+        return text.replace("/", "-")
+    digits = "".join(ch for ch in text if ch.isdigit())
+    # 八碼且以 19/20 開頭視為西元，否則按民國年加 1911
+    if len(digits) == 8 and digits.startswith(("19", "20")):
+        return f"{digits[:4]}-{digits[4:6]}-{digits[6:]}"
     if len(digits) < 7:
         return None
     try:
@@ -80,45 +101,121 @@ def pick(row, *keys):
     return None
 
 
-def parse_twse(rows):
-    """解析上市行情列表，回傳 (資料, 交易日)。"""
-    out = {}
-    trade_date = None
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        code = str(pick(row, "Code", "證券代號", "股票代號") or "").strip()
-        close = to_float(pick(row, "ClosingPrice", "收盤價"))
-        if not code or close is None:
-            continue
-        if trade_date is None:
-            trade_date = roc_to_iso(pick(row, "Date", "日期") or "")
-        out[code] = {
-            "name": str(pick(row, "Name", "證券名稱", "股票名稱") or "").strip(),
-            "close": close,
-            "change": to_float(pick(row, "Change", "漲跌價差")) or 0.0,
-            "market": "上市",
-        }
-    return out, trade_date
+def _tables_from(payload):
+    """
+    把各種回應攤平成 (fields, rows) 的清單。證交所有三種格式：
+      1. 直接是 dict 陣列（OpenAPI）
+      2. {"fields":[...], "data":[[...]]}（舊版官網）
+      3. {"tables":[{"fields":[...], "data":[...]}]} 或 fields9/data9（MI_INDEX）
+    """
+    out = []
+    if isinstance(payload, list):
+        if payload and isinstance(payload[0], dict):
+            out.append((None, payload))
+        return out
+    if not isinstance(payload, dict):
+        return out
+
+    if isinstance(payload.get("tables"), list):
+        for t in payload["tables"]:
+            if isinstance(t, dict) and isinstance(t.get("fields"), list) and isinstance(t.get("data"), list):
+                out.append((t["fields"], t["data"]))
+
+    if isinstance(payload.get("fields"), list) and isinstance(payload.get("data"), list):
+        out.append((payload["fields"], payload["data"]))
+
+    for key in payload:
+        if key.startswith("data") and key != "data":
+            fkey = "fields" + key[4:]
+            if isinstance(payload.get(fkey), list) and isinstance(payload[key], list):
+                out.append((payload[fkey], payload[key]))
+    return out
+
+
+def _col(fields, *needles):
+    """在欄位名稱清單中找出第一個符合的索引。"""
+    for i, f in enumerate(fields):
+        text = str(f)
+        for n in needles:
+            if n in text:
+                return i
+    return None
+
+
+def parse_twse(payload, fallback_date=None):
+    """解析上市行情，回傳 (資料, 交易日)。吃得下 dict 陣列與 fields/data 陣列兩種。"""
+    best, best_date = {}, None
+
+    for fields, rows in _tables_from(payload):
+        out, date = {}, None
+
+        if fields is None:                      # dict 陣列
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                code = str(pick(row, "Code", "證券代號", "股票代號") or "").strip()
+                close = to_float(pick(row, "ClosingPrice", "收盤價"))
+                if not code or close is None:
+                    continue
+                if date is None:
+                    date = roc_to_iso(pick(row, "Date", "日期") or "")
+                out[code] = {
+                    "name": str(pick(row, "Name", "證券名稱", "股票名稱") or "").strip(),
+                    "close": close,
+                    "change": to_float(pick(row, "Change", "漲跌價差")) or 0.0,
+                    "market": "上市",
+                }
+        else:                                    # fields + data 陣列
+            i_code = _col(fields, "證券代號", "股票代號", "Code")
+            i_close = _col(fields, "收盤價", "ClosingPrice")
+            i_name = _col(fields, "證券名稱", "股票名稱", "Name")
+            i_chg = _col(fields, "漲跌價差", "Change")
+            if i_code is None or i_close is None:
+                continue
+            for row in rows:
+                if not isinstance(row, list) or len(row) <= max(i_code, i_close):
+                    continue
+                code = str(row[i_code]).strip().strip('="')
+                close = to_float(row[i_close])
+                if not code or close is None:
+                    continue
+                out[code] = {
+                    "name": str(row[i_name]).strip() if i_name is not None and len(row) > i_name else "",
+                    "close": close,
+                    "change": (to_float(row[i_chg]) or 0.0) if i_chg is not None and len(row) > i_chg else 0.0,
+                    "market": "上市",
+                }
+
+        if out and len(out) > len(best):
+            best, best_date = out, date
+
+    if best_date is None:
+        best_date = fallback_date
+    return best, best_date
 
 
 def fetch_twse():
     """抓所有上市來源，回傳交易日最新的一份。"""
     best, best_date, best_label = {}, None, None
-    for label, url in TWSE_SOURCES:
+
+    for label, url in [TWSE_OPENAPI] + twse_site_sources():
         try:
-            rows = http_get_json(url)
+            payload = http_get_json(url)
         except Exception as exc:  # noqa: BLE001
             print(f"  [上市/{label}] 抓取失敗：{exc}", file=sys.stderr)
             continue
 
-        data, date = parse_twse(rows if isinstance(rows, list) else [])
+        # 官網回應常帶 date 欄位（YYYYMMDD）
+        fallback = None
+        if isinstance(payload, dict) and payload.get("date"):
+            fallback = roc_to_iso(payload["date"])
+        data, date = parse_twse(payload, fallback)
+
         if not data:
             print(f"  [上市/{label}] 沒有解析出資料", file=sys.stderr)
             continue
 
         print(f"  [上市/{label}] {len(data)} 檔，交易日 {date}")
-        # 日期較新者勝；抓不到日期的來源只在沒有其他選擇時採用
         if best_date is None or (date is not None and date > best_date):
             best, best_date, best_label = data, date, label
 

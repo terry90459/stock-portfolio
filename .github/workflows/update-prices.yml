@@ -1,0 +1,42 @@
+name: 更新台股收盤價
+
+on:
+  schedule:
+    # 台北時間週一到週五 15:30 與 18:00（cron 用 UTC，台北 = UTC+8）
+    - cron: "30 7 * * 1-5"
+    - cron: "0 10 * * 1-5"
+  workflow_dispatch: # 允許在 Actions 頁面手動按按鈕執行
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取得原始碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 抓取收盤行情
+        run: python scripts/fetch_prices.py
+
+      - name: 有更新才 commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- prices.json; then
+            echo "報價沒有變化，略過 commit"
+          else
+            git add prices.json
+            git commit -m "更新收盤價 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+            git push
+          fi

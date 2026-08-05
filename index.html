@@ -620,19 +620,23 @@ function paint(){
     if(fresh) G.name = fresh;
   });
 
-  const rates = order.map(c => {
+  /* 刻度基準同時涵蓋統整列與單筆，兩個層級的條長可以直接互相比較 */
+  const allRates = [];
+  order.forEach(c => {
     const G = group[c];
     const gg = G.spread + (withDividend ? G.dividend : 0);
-    return G.cost > 0 ? Math.abs(gg / G.cost * 100) : 0;
+    if(G.cost > 0) allRates.push(Math.abs(gg / G.cost * 100));
+    G.rows.forEach(l => { const k = calc(l); allRates.push(Math.abs(k.rate)); });
   });
-  const span = Math.max(8, ...rates);
+  const span = Math.max(8, ...allRates);
+  const barOf = r => Math.min(100, Math.abs(r) / span * 100);
 
   order.forEach(code => {
     const G = group[code];
     const gg = G.spread + (withDividend ? G.dividend : 0);
     const rr = G.cost > 0 ? gg / G.cost * 100 : 0;
     const closed = shut.has(code);
-    const bar = Math.min(100, Math.abs(rr) / span * 100);
+    const bar = barOf(rr);
     const avg = G.shares > 0 ? G.cost / G.shares : 0;
     const exempt = taxRate(code) === 0;
 
@@ -705,7 +709,10 @@ function paint(){
           <input class="num-in ${dk !== "own" ? "derived" : ""}" type="number" step="1"
                  value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal" aria-label="配息">${dTag}</span>
           ${soonNote}</td>
-        <td class="pl ${tone(c.gain)}"><span class="mark">${mark}</span>${money(c.gain)}<span class="gauge"><span class="num">${pct(c.rate)}</span></span></td>
+        <td class="pl ${tone(c.gain)}"><span class="mark">${mark}</span>${money(c.gain)}<span class="gauge">
+          <span class="num">${pct(c.rate)}</span>
+          <span class="rule" data-bar="${barOf(c.rate)}" style="width:${firstPaint ? 0 : barOf(c.rate)}%"></span>
+        </span></td>
         <td class="settled">${money(c.net)}<span class="sub">${sellNote(c.sellFee, c.sellTax, exempt)}</span></td>
         <td><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
       book.appendChild(row);

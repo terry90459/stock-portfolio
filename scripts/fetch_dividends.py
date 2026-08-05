@@ -26,7 +26,7 @@ KNOWN_SOURCES = [
 
 # 端點名稱會變動，改成從 swagger 自動探索含「除權/除息」的端點
 SWAGGERS = [
-    ("上市", "https://openapi.twse.com.tw/v1/swagger.json", "https://openapi.twse.com.tw/v1"),
+    ("上市", "https://openapi.twse.com.tw/v1/swagger.json", "https://openapi.twse.com.tw"),
     ("上櫃", "https://www.tpex.org.tw/openapi/swagger.json", "https://www.tpex.org.tw/openapi"),
 ]
 
@@ -43,7 +43,11 @@ KEYS_CASH = (
     "股東配發-盈餘分配之現金股利(元/股)", "權值+息值",
 )
 KEYS_STOCK = ("StockDividendRatio", "StockDividend", "權值", "股東配發-盈餘轉增資配股(元/股)")
-KEYS_TYPE = ("ExRrightsExDividend", "ExRightsExDividend", "Type", "權/息", "除權息", "類別")
+KEYS_TYPE = (
+    "ExRrightsExDividend",  # 櫃買
+    "Exdividend", "ExRightsExDividend",  # 證交所
+    "Type", "權/息", "除權息", "類別",
+)
 
 
 def http_get_json(url):
@@ -147,11 +151,15 @@ def discover_sources():
             print(f"[warn] {label} swagger 讀取失敗：{exc}", file=sys.stderr)
             continue
 
+        # basePath 要接上，否則像櫃買會少掉 /v1 而 404
+        base_path = str(spec.get("basePath") or "").rstrip("/")
+        root = base + base_path if not base.endswith(base_path or "\0") else base
+
         for path, methods in (spec.get("paths") or {}).items():
             info = (methods or {}).get("get") or {}
             summary = str(info.get("summary") or "")
             if "除權" in summary or "除息" in summary:
-                found.append((f"{label}-{summary}", base + path))
+                found.append((f"{label}-{summary}", root + path))
 
     if found:
         print(f"[info] 從 swagger 探索到 {len(found)} 個除權息端點：")

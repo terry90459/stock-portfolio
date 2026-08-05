@@ -259,6 +259,11 @@ const gainClass = n => n > 0 ? "gain-text" : (n < 0 ? "loss-text" : "");
 const arrow = n => n > 0 ? "▲" : (n < 0 ? "▼" : "—");
 const escapeHtml = s => String(s).replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/** 以台北時區取得今天日期，格式 YYYY-MM-DD */
+function todayISO(){
+  const d = new Date(Date.now() + 8 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
 
 /* ---------- 報價與配息 ---------- */
 const lookupQuote = code => priceMap[code] || null;
@@ -276,13 +281,28 @@ function priceSource(lot){
   return (q && typeof q.close === "number") ? "auto" : "none";
 }
 
-/** 自動配息：除息日在買入日當天或之後的事件才算領得到 */
+/** 自動配息：除息日需在買入日當天或之後，且已經過了（預告表含未來日期，不能先算） */
 function autoDividend(lot){
   if(!lot.buyDate) return 0;
   const events = divByCode[lot.code];
   if(!events) return 0;
+  const today = todayISO();
   return events.reduce((sum, ev) => {
-    if(ev.exDate >= lot.buyDate && ev.cash > 0) return sum + ev.cash * lot.shares;
+    if(ev.cash > 0 && ev.exDate >= lot.buyDate && ev.exDate <= today){
+      return sum + ev.cash * lot.shares;
+    }
+    return sum;
+  }, 0);
+}
+
+/** 已公告但還沒到除息日的金額，只做提示用，不計入收益 */
+function upcomingDividend(lot){
+  if(!lot.buyDate) return 0;
+  const events = divByCode[lot.code];
+  if(!events) return 0;
+  const today = todayISO();
+  return events.reduce((sum, ev) => {
+    if(ev.cash > 0 && ev.exDate > today) return sum + ev.cash * lot.shares;
     return sum;
   }, 0);
 }
@@ -466,6 +486,9 @@ function render(){
 
       const row = document.createElement("tr");
       row.className = "detail-row" + (collapsed ? " hidden-row" : "");
+      const upcoming = upcomingDividend(l);
+      const upcomingNote = (upcoming > 0 && dSrc !== "manual")
+        ? `<span class="name-sub" style="color:var(--div)">待除息 ${fmtMoney(upcoming)}</span>` : "";
       row.innerHTML = `
         <td class="left"><span class="code-cell">${escapeHtml(l.code)}</span></td>
         <td class="left">${escapeHtml(l.name)}
@@ -478,7 +501,8 @@ function render(){
         <td>${fmtMoney(c.totalCost)}</td>
         <td><span class="cell-flex">
           <input class="edit-input ${dSrc !== "manual" ? "auto" : ""}" type="number" step="1"
-                 value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal">${dChip}</span></td>
+                 value="${Math.round(c.dividend)}" data-div="${l.id}" inputmode="decimal">${dChip}</span>
+          ${upcomingNote}</td>
         <td class="${gainClass(c.gain)}">${fmtMoney(c.gain)}</td>
         <td class="${gainClass(c.gain)}">${fmtRate(c.rate)}</td>
         <td><button class="del-btn" data-del="${l.id}" title="刪除這筆">✕</button></td>`;

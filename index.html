@@ -192,9 +192,10 @@
   tr.entry.shut .caret{ transform: rotate(-90deg); }
   .nil{ color: #a8b6a9; }
 
-  tr.line{ background: #f7faf6; }
+  /* 底色與預設字色放在 tr 上，避免 tr.line td 的權重蓋掉 td 的顏色 class */
+  tr.line{ background: #f7faf6; color: var(--ink); }
   tr.line td{
-    color: var(--ink); font-size: 14.5px;
+    font-size: 14.5px;
     padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--rule-fine);
   }
   tr.line .sym{

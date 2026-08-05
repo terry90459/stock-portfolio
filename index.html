@@ -21,6 +21,7 @@
     --rise:       #b02f22;
     --fall:       #1b6b4c;
     --stamp:      #2e4a7d;
+    --cost:       #7d4f24;
 
     --serif: 'Noto Serif TC', serif;
     --sans:  'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
@@ -460,10 +461,16 @@
   .sub-cost{
     display: block;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--ink-soft);
-    margin-top: 1px;
+    margin-top: 2px;
+    letter-spacing: .01em;
   }
+  .sub-cost b{
+    font-weight: 500;
+    color: var(--cost);
+  }
+  .sub-cost .plus{ color: var(--rule); margin: 0 1px; }
   .commit{
     appearance: none;
     background: var(--ink);
@@ -744,6 +751,15 @@ function taxLabel(code){
   return "股票 0.3%";
 }
 
+/** 賣出費用明細，數字用費用色標示；免徵的標的直接寫免徵 */
+function costBreakdown(fee, tax, exempt){
+  const f = `手續費 <b>${Math.round(fee).toLocaleString("en-US")}</b>`;
+  const t = exempt
+    ? `證交稅 <b>免徵</b>`
+    : `證交稅 <b>${Math.round(tax).toLocaleString("en-US")}</b>`;
+  return `${f}<span class="plus"> ＋ </span>${t}`;
+}
+
 /** 標準手續費：無條件捨去，未滿最低金額以最低計 */
 function standardFee(amount, regular){
   if(regular) return FEE_PLAN;
@@ -755,10 +771,12 @@ function buyFee(lot){
 }
 const feeKind = lot => (lot.fee !== null && lot.fee !== undefined) ? "own" : "auto";
 
-/** 賣出成本估算：手續費 + 證交稅 */
-function exitCost(lot, price){
+/** 賣出成本：手續費與證交稅分開列示 */
+function exitParts(lot, price){
   const value = price * lot.shares;
-  return standardFee(value, false) + Math.floor(value * taxRate(lot.code));
+  const fee = standardFee(value, false);
+  const tax = Math.floor(value * taxRate(lot.code));
+  return { fee, tax, total: fee + tax };
 }
 
 function calc(lot){
@@ -772,12 +790,12 @@ function calc(lot){
   const gain = withDividend ? spread + dividend : spread;
 
   // 完稅金額：現在賣出、扣掉賣出手續費與證交稅之後實際入帳的錢
-  const exit = exitCost(lot, price);
-  const net = price * lot.shares - exit;
-  // 完稅後損益：再扣掉買進時付的手續費
+  const x = exitParts(lot, price);
+  const net = price * lot.shares - x.total;
   const netGain = net - cost - fee + (withDividend ? dividend : 0);
 
-  return { price, fee, cost, dividend, spread, gain, exit, net, netGain,
+  return { price, fee, cost, dividend, spread, gain,
+           sellFee: x.fee, sellTax: x.tax, exit: x.total, net, netGain,
            rate: cost > 0 ? gain / cost * 100 : 0 };
 }
 
@@ -910,12 +928,16 @@ function paint(){
   lots.forEach(l => {
     if(!group[l.code]){
       group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, fee:0,
-                        spread:0, dividend:0, net:0, rows:[] };
+                        spread:0, dividend:0, net:0, sellFee:0, sellTax:0,
+                        prices:[], owned:0, rows:[] };
       order.push(l.code);
     }
     const c = calc(l), G = group[l.code];
     G.shares += l.shares; G.cost += c.cost; G.fee += c.fee;
     G.spread += c.spread; G.dividend += c.dividend; G.net += c.net;
+    G.sellFee += c.sellFee; G.sellTax += c.sellTax;
+    G.prices.push(c.price);
+    if(priceKind(l) === "own") G.owned++;
     G.rows.push(l);
     const fresh = nameOf(l.code);
     if(fresh) G.name = fresh;
@@ -936,6 +958,14 @@ function paint(){
     const closed = shut.has(code);
     const bar = Math.min(100, Math.abs(rr) / span * 100);
 
+    /* 該檔的現價：各筆一致就顯示該值，被個別改過就標記混合 */
+    const mixed = new Set(G.prices).size > 1;
+    const shown = mixed ? "" : G.prices[0];
+    const gTag = G.owned > 0
+      ? `<span class="tag own">${G.owned === G.rows.length ? "手動" : "部分手動"}</span>` +
+        `<button class="ghost" data-rgp="${esc(code)}" title="整檔還原自動報價" aria-label="整檔還原自動報價">↺</button>`
+      : `<span class="tag">自動</span>`;
+
     const tr = document.createElement("tr");
     tr.className = "entry" + (closed ? " shut" : "");
     tr.tabIndex = 0;
@@ -946,18 +976,24 @@ function paint(){
       <td class="hide-sm nil">—</td>
       <td>${money(G.fee)}</td>
       <td>${money(G.cost)}</td>
-      <td class="nil">—</td>
+      <td><span class="pair">
+        <input class="num-in ${G.owned ? "" : "derived"}" type="number" step="0.01"
+               value="${shown}" ${mixed ? 'placeholder="混合"' : ""}
+               data-gprice="${esc(code)}" inputmode="decimal"
+               aria-label="${esc(G.code)} 現價，改動會套用到所有買進紀錄">${gTag}</span></td>
       <td class="${G.dividend > 0 ? "" : "nil"}">${money(G.dividend)}</td>
       <td class="${tone(gg)}">${money(gg)}</td>
       <td class="${tone(rr)}"><span class="gauge">
         <span class="num">${pct(rr)}</span>
         <span class="rule" data-bar="${bar}" style="width:${firstPaint ? 0 : bar}%"></span>
       </span></td>
-      <td class="settled">${money(G.net)}</td>
+      <td class="settled">${money(G.net)}
+        <span class="sub-cost">${costBreakdown(G.sellFee, G.sellTax, taxRate(G.code) === 0)}</span></td>
       <td></td>`;
     const flip = () => { shut.has(code) ? shut.delete(code) : shut.add(code); paint(); };
     tr.addEventListener("click", flip);
     tr.addEventListener("keydown", e => {
+      if(e.target !== tr) return;              // 焦點在輸入框或按鈕時不觸發
       if(e.key === "Enter" || e.key === " "){ e.preventDefault(); flip(); }
     });
     book.appendChild(tr);
@@ -998,7 +1034,8 @@ function paint(){
           ${soonNote}</td>
         <td class="${tone(c.gain)}">${money(c.gain)}</td>
         <td class="${tone(c.gain)}">${pct(c.rate)}</td>
-        <td class="settled">${money(c.net)}<span class="sub-cost">${taxLabel(l.code)}</span></td>
+        <td class="settled">${money(c.net)}
+          <span class="sub-cost">${costBreakdown(c.sellFee, c.sellTax, taxRate(l.code) === 0)}</span></td>
         <td><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
       book.appendChild(row);
     });
@@ -1022,8 +1059,22 @@ const findLot = id => lots.find(x => String(x.id) === String(id));
 function wire(){
   document.querySelectorAll(".num-in").forEach(i => {
     i.addEventListener("click", e => e.stopPropagation());
+    i.addEventListener("keydown", e => e.stopPropagation());
     i.addEventListener("change", e => {
       const t = e.target;
+
+      /* 統整列的現價：套用到該檔所有買進紀錄 */
+      if(t.dataset.gprice !== undefined){
+        const code = t.dataset.gprice;
+        const raw = t.value.trim();
+        const v = parseFloat(raw);
+        lots.forEach(l => {
+          if(l.code === code) l.override = (raw === "" || isNaN(v)) ? null : v;
+        });
+        keep(); paint();
+        return;
+      }
+
       const lot = findLot(t.dataset.price || t.dataset.div || t.dataset.fee);
       if(!lot) return;
       const v = parseFloat(t.value);
@@ -1038,6 +1089,11 @@ function wire(){
   hook("[data-rp]", b => { const l = findLot(b.dataset.rp); if(l){ l.override = null; keep(); paint(); } });
   hook("[data-rd]", b => { const l = findLot(b.dataset.rd); if(l){ l.dividend = null; keep(); paint(); } });
   hook("[data-rf]", b => { const l = findLot(b.dataset.rf); if(l){ l.fee = null; keep(); paint(); } });
+  hook("[data-rgp]", b => {
+    const code = b.dataset.rgp;
+    lots.forEach(l => { if(l.code === code) l.override = null; });
+    keep(); paint();
+  });
   hook("[data-del]", b => {
     lots = lots.filter(x => String(x.id) !== String(b.dataset.del));
     keep(); paint();

@@ -57,9 +57,27 @@ python3 -m http.server 8000       # 開 http://localhost:8000
 直接用瀏覽器開 `index.html` 也可以，但 `fetch()` 讀 `prices.json` 會被
 `file://` 的 CORS 規則擋掉，價格會變成手動輸入模式。用上面的 http.server 就正常。
 
+## 跨裝置同步（Supabase）
+
+`config.js` 填入 Supabase 專案網址與 anon key 之後，頁面上方會出現帳號列，
+用 Email 收登入連結即可跨裝置同步。兩個值留空則維持純本機模式。
+
+設定步驟：
+
+1. 建立 Supabase 專案
+2. SQL Editor 貼上 `supabase-schema.sql` 執行
+3. Authentication → URL Configuration 把網站網址加入 Redirect URLs
+4. Project Settings → API 取得 Project URL 與 anon public key，填進 `config.js`
+
+anon key 是設計給瀏覽器用的公開金鑰，放在公開 repo 沒問題；
+真正的防線是資料表的 Row Level Security，規則是「只能存取 `user_id = auth.uid()` 的列」。
+**service_role key 絕對不要放進 config.js。**
+
+免費方案閒置 7 天會暫停專案，排程裡有一個「喚醒 Supabase」步驟負責定期戳它。
+
 ## 已知限制
 
-- **資料不跨裝置同步**。持股資料存在各裝置自己的瀏覽器裡，手機和電腦是兩份獨立資料。清除瀏覽器資料會一併清掉。
+- 未登入時資料只存在該裝置的瀏覽器，清除瀏覽器資料會一併清掉。
 - 只涵蓋上市與上櫃，興櫃與海外標的沒有自動報價，需手動輸入價格。
 - 收盤價未還原除權息，長期持有的報酬率會低估（累計配息欄位可補回現金股利部分）。
 - 資料來源包含「除權息預告表」，內含尚未到期的除息日。計算累計配息時只採計

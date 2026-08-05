@@ -47,3 +47,19 @@ jobs:
             git commit -m "更新收盤價與除權息 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
             git push
           fi
+
+      # Supabase 免費方案閒置 7 天會暫停專案，順手戳一下保持喚醒。
+      # 用的是公開的 anon key，RLS 會擋掉實際資料，只是製造一次請求。
+      - name: 喚醒 Supabase
+        continue-on-error: true
+        run: |
+          URL=$(grep -oP 'SUPABASE_URL\s*=\s*"\K[^"]*' config.js || true)
+          KEY=$(grep -oP 'SUPABASE_ANON_KEY\s*=\s*"\K[^"]*' config.js || true)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "config.js 尚未填入設定，略過"
+            exit 0
+          fi
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+            "$URL/rest/v1/holdings?select=id&limit=1")
+          echo "Supabase 回應 $CODE"

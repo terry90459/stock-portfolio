@@ -12,7 +12,9 @@
 """
 
 import json
+import os
 import sys
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone, timedelta
@@ -44,20 +46,30 @@ TPEX_URLS = [
     "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
 ]
 
+OUTPUT = "prices.json"
 TIMEOUT = 40
 TPE = timezone(timedelta(hours=8))
 
 
-def http_get_json(url):
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "Mozilla/5.0 (compatible; stock-portfolio/1.0)",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+def http_get_json(url, attempts=3):
+    """帶重試：證交所與櫃買偶爾回 5xx 或連線中斷，隔幾秒再試通常就好了。"""
+    last = None
+    for i in range(attempts):
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; stock-portfolio/1.0)",
+                    "Accept": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            if i < attempts - 1:
+                time.sleep(3 * (i + 1))
+    raise last
 
 
 def to_float(value):
@@ -284,57 +296,78 @@ def fetch_tpex():
     return {}, None
 
 
+def load_previous():
+    """讀取既有的 prices.json，供某個市場抓取失敗時沿用。"""
+    if not os.path.exists(OUTPUT):
+        return {}, {}
+    try:
+        with open(OUTPUT, encoding="utf-8") as h:
+            d = json.load(h)
+        return d.get("prices", {}) or {}, d.get("marketDates", {}) or {}
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] 既有 {OUTPUT} 讀取失敗，視為空的：{exc}", file=sys.stderr)
+        return {}, {}
+
+
 def main():
+    prev_prices, prev_dates = load_previous()
     prices = {}
-    trade_date = None
+    market_dates = {}
     sources = []
+    stale = []
 
-    dates = []
+    for market, fetch in (("上市", fetch_twse), ("上櫃", fetch_tpex)):
+        data, date = {}, None
+        try:
+            data, date = fetch()
+        except Exception as exc:  # noqa: BLE001
+            print(f"[error] {market}資料抓取失敗：{exc}", file=sys.stderr)
 
-    try:
-        twse, date_twse = fetch_twse()
-        if twse:
-            prices.update(twse)
-            sources.append(f"上市 {len(twse)} 檔")
-            if date_twse:
-                dates.append(date_twse)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[error] 上市資料抓取失敗：{exc}", file=sys.stderr)
+        if data:
+            prices.update(data)
+            market_dates[market] = date
+            sources.append(f"{market} {len(data)} 檔")
+            if market == "上櫃":
+                print(f"  [上櫃] {len(data)} 檔，交易日 {date}")
+            continue
 
-    try:
-        tpex, date_tpex = fetch_tpex()
-        if tpex:
-            prices.update(tpex)
-            sources.append(f"上櫃 {len(tpex)} 檔")
-            print(f"  [上櫃] {len(tpex)} 檔，交易日 {date_tpex}")
-            if date_tpex:
-                dates.append(date_tpex)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[error] 上櫃資料抓取失敗：{exc}", file=sys.stderr)
-
-    # 兩市場日期不同時取較舊的，寧可低報也不要讓使用者以為資料比實際新
-    trade_date = min(dates) if dates else None
-    if len(set(dates)) > 1:
-        print(f"[warn] 兩市場交易日不一致：{sorted(set(dates))}，保守標示為 {trade_date}",
-              file=sys.stderr)
+        # 這個市場抓不到，沿用上一次的，不要讓既有報價憑空消失
+        carried = {k: v for k, v in prev_prices.items() if v.get("market") == market}
+        if carried:
+            prices.update(carried)
+            market_dates[market] = prev_dates.get(market)
+            sources.append(f"{market} {len(carried)} 檔(沿用)")
+            stale.append(market)
+            print(f"[warn] {market}沿用上次資料 {len(carried)} 檔，交易日 "
+                  f"{prev_dates.get(market)}", file=sys.stderr)
+        else:
+            print(f"[warn] {market}沒有資料，也沒有前次資料可沿用", file=sys.stderr)
 
     if not prices:
-        print("[fatal] 兩個來源都沒有資料，不覆寫既有的 prices.json", file=sys.stderr)
+        print(f"[fatal] 完全沒有資料，不覆寫既有的 {OUTPUT}", file=sys.stderr)
         return 1
+
+    dates = [d for d in market_dates.values() if d]
+    # 各市場日期不同時取較舊的，寧可低報也不要讓使用者以為資料比實際新
+    trade_date = min(dates) if dates else None
+    if len(set(dates)) > 1:
+        print(f"[warn] 各市場交易日不一致：{market_dates}，保守標示為 {trade_date}",
+              file=sys.stderr)
 
     payload = {
         "updatedAt": datetime.now(TPE).isoformat(timespec="seconds"),
         "tradeDate": trade_date,
-        "tradeDates": sorted(set(dates)),
+        "marketDates": market_dates,
+        "stale": stale,
         "count": len(prices),
         "sources": sources,
         "prices": prices,
     }
-
-    with open("prices.json", "w", encoding="utf-8") as handle:
+    with open(OUTPUT, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
 
-    print(f"[done] 已寫入 prices.json，共 {len(prices)} 檔，交易日 {trade_date}")
+    print(f"[done] 已寫入 {OUTPUT}，共 {len(prices)} 檔，交易日 {trade_date}"
+          + (f"（{'、'.join(stale)} 為沿用）" if stale else ""))
     return 0
 
 

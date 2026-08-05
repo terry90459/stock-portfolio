@@ -523,6 +523,10 @@ async function loadFeeds(){
     if(d.tradeDate && d.count > 0){
       ok = true; head = `收盤 ${esc(d.tradeDate)}`;
       tail = `${d.count.toLocaleString("en-US")} 檔自動報價`;
+      if(Array.isArray(d.stale) && d.stale.length){
+        ok = false;                       // 有市場沒更新到，狀態列改成灰的提醒
+        tail += ` · ${esc(d.stale.join("、"))}沿用前次`;
+      }
     } else { head = "尚無報價"; tail = "等第一次排程更新"; }
   }catch(e){ quotes = {}; head = "報價讀不到"; tail = "現價請自行填寫"; }
   try{

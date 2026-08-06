@@ -210,6 +210,69 @@
   }
   .alert{ font-size: 13.5px; color: var(--rise); margin-top: 12px; min-height: 20px; }
 
+  /* ── 分頁 ───────────────────────────── */
+  .tabs{ display: inline-flex; gap: 2px; }
+  .tabs button{
+    appearance: none; background: transparent; border: 1px solid var(--rule);
+    border-bottom: none; font-family: var(--sans); font-size: 13.5px;
+    color: var(--ink-soft); padding: 6px 18px 7px; cursor: pointer;
+    position: relative; bottom: -1px;
+  }
+  .tabs button span{
+    font-family: var(--mono); font-size: 11.5px; margin-left: 5px; opacity: .7;
+  }
+  .tabs button[aria-selected="true"]{
+    background: var(--paper-deep); border-color: var(--ink);
+    border-bottom: 1px solid var(--paper-deep); color: var(--ink); font-weight: 500;
+  }
+
+  /* ── 賣出面板 ───────────────────────── */
+  .sellbox{
+    border: 1px solid var(--stamp); border-top: none;
+    background: #eef2f8; padding: 18px 20px;
+  }
+  .sellbox h3{
+    font-family: var(--serif); font-weight: 700; font-size: 15px;
+    letter-spacing: .1em; margin: 0 0 4px;
+  }
+  .sellbox .lede{ font-size: 12.5px; color: var(--ink-soft); margin: 0 0 14px; }
+  .sellbox .grid{
+    display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: 14px 18px; align-items: end; margin-bottom: 14px;
+  }
+  .sellbox label{
+    display: block; font-size: 11.5px; letter-spacing: .08em;
+    color: var(--ink-soft); margin-bottom: 4px;
+  }
+  .sellbox input{
+    width: 100%; background: transparent; border: none;
+    border-bottom: 1px solid var(--ink); font-family: var(--mono);
+    font-size: 15.5px; color: var(--ink); padding: 5px 2px;
+  }
+  .sellbox input:focus{ outline: none; border-bottom: 2px solid var(--stamp); padding-bottom: 4px; }
+  .sellbox .preview{
+    font-family: var(--mono); font-size: 13px; color: var(--ink-soft);
+    border-top: 1px solid var(--rule-fine); padding-top: 12px; margin-bottom: 14px;
+  }
+  .sellbox .preview b{ color: var(--ink); font-weight: 500; }
+  .sellbox .row{ display: flex; gap: 10px; align-items: center; }
+  .sellbox button{
+    appearance: none; background: transparent; border: 1px solid var(--ink);
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    padding: 8px 20px; cursor: pointer;
+  }
+  .sellbox button.go{ background: var(--stamp); border-color: var(--stamp); color: #fff; }
+  .sellbox button:hover{ background: var(--ink); color: var(--paper); }
+  .sellbox button.go:hover{ filter: brightness(1.15); background: var(--stamp); }
+  .sellbox .err{ color: var(--rise); font-size: 13px; }
+
+  .btn-sell{
+    background: none; border: 1px solid var(--rule); cursor: pointer;
+    color: var(--ink-soft); font-family: var(--sans); font-size: 11.5px;
+    padding: 2px 8px; line-height: 1.5; margin-right: 4px;
+  }
+  .btn-sell:hover{ background: var(--stamp); border-color: var(--stamp); color: #fff; }
+
   /* ── 存摺表格 ───────────────────────── */
   .scroll{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table{ width: 100%; border-collapse: collapse; }
@@ -370,7 +433,7 @@
       <div><span class="v flat" id="vGain">$0</span><span class="pct flat" id="vRate">0.00%</span></div>
     </div>
     <div class="cell big settled-cell">
-      <div class="k">實際損益 <small>全部賣出完稅後</small></div>
+      <div class="k" id="kNet">實際損益 <small>全部賣出完稅後</small></div>
       <div><span class="v flat" id="vNet">$0</span><span class="pct flat" id="vNetRate">0.00%</span></div>
     </div>
   </section>
@@ -429,11 +492,16 @@
   </section>
 
   <div class="band">
-    <h2>持股明細</h2>
-    <span class="aside">點代號展開該檔的每一筆買進</span>
+    <h2 id="bookTitle">持股明細</h2>
+    <span class="tabs" role="tablist">
+      <button id="tabHeld" role="tab" aria-selected="true">持有 <span id="cntHeld">0</span></button>
+      <button id="tabSold" role="tab" aria-selected="false">已賣出 <span id="cntSold">0</span></button>
+    </span>
   </div>
 
-  <div class="scroll">
+  <div class="sellbox" id="sellBox" hidden></div>
+
+  <div class="scroll" id="viewHeld">
     <table>
       <thead>
         <tr>
@@ -452,10 +520,34 @@
     </table>
   </div>
 
-  <p class="legend">
+  <div class="scroll" id="viewSold" hidden>
+    <table>
+      <thead>
+        <tr>
+          <th class="l">代號 · 名稱</th>
+          <th>股數</th>
+          <th class="hide-sm">買進價</th>
+          <th>賣出價</th>
+          <th class="hide-sm">持有天數</th>
+          <th>成本</th>
+          <th>配息</th>
+          <th>價差損益</th>
+          <th>實收損益</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="bookSold"></tbody>
+    </table>
+  </div>
+
+  <p class="legend" id="legendHeld">
     台股買進與賣出<b>各收一次手續費</b>，兩者不重複。成本欄下方是買進手續費，完稅金額下方是賣出手續費與證交稅。<br>
-    完稅金額＝現價賣出後實際入帳。實際損益＝完稅金額 − 本金 − 買進手續費（＋配息）。
+    完稅金額＝現價賣出後實際入帳。損益與報酬率是帳面數字，不含交易成本。
     證交稅：一般股票 0.3%、股票型 ETF 0.1%、債券 ETF 免徵（優惠至 2026 年底）。
+  </p>
+  <p class="legend" id="legendSold" hidden>
+    <b>價差損益</b>只算買賣價差，<b>實收損益</b>再扣掉買進與賣出手續費、證交稅，是真正落袋的金額。<br>
+    分批賣出時原本那筆會拆成兩列，買進手續費依股數比例分攤。
   </p>
 
   <footer class="colophon">
@@ -479,6 +571,7 @@ let quotes = {};
 let divsByCode = {};
 let quoteDate = null;
 let withDividend = true;
+let tab = "held";                 // "held" 或 "sold"
 let firstPaint = true;
 const shut = new Set();
 
@@ -510,9 +603,10 @@ function divEarned(lot){
   if(!lot.buyDate) return 0;
   const evs = divsByCode[lot.code];
   if(!evs) return 0;
-  const t = today();
+  // 已賣出的部位，只算到賣出日為止
+  const until = lot.sellDate && lot.sellDate < today() ? lot.sellDate : today();
   return evs.reduce((s, e) =>
-    (e.cash > 0 && e.exDate >= lot.buyDate && e.exDate <= t) ? s + e.cash * lot.shares : s, 0);
+    (e.cash > 0 && e.exDate >= lot.buyDate && e.exDate <= until) ? s + e.cash * lot.shares : s, 0);
 }
 function divPending(lot){
   if(!lot.buyDate) return 0;
@@ -549,6 +643,39 @@ function exitParts(lot, price){
   const fee = standardFee(value, false);
   const tax = Math.floor(value * taxRate(lot.code));
   return { fee, tax, total: fee + tax };
+}
+
+/** 有賣出日就是已結束的部位 */
+const isClosed = lot => Boolean(lot.sellDate);
+const openLots = () => lots.filter(l => !isClosed(l));
+const closedLots = () => lots.filter(isClosed);
+
+/** 已結束部位的實際賣出費用；null 表示沿用標準費率 */
+function realizedExit(lot){
+  const value = (lot.sellPrice || 0) * lot.shares;
+  const fee = lot.sellFee ?? standardFee(value, false);
+  const tax = lot.sellTax ?? Math.floor(value * taxRate(lot.code));
+  return { fee, tax, total: fee + tax };
+}
+
+/** 已實現損益。手續費與稅都是實際付掉的錢，所以淨損益一定含這些成本。 */
+function calcClosed(lot){
+  const buy = buyFee(lot);
+  const cost = lot.shares * lot.buyPrice;
+  const x = realizedExit(lot);
+  const proceeds = lot.sellPrice * lot.shares - x.total;
+  const dividend = divOf(lot);
+  const spread = (lot.sellPrice - lot.buyPrice) * lot.shares;      // 帳面價差
+  const net = proceeds - cost - buy + (withDividend ? dividend : 0); // 實收
+  const days = lot.buyDate && lot.sellDate
+    ? Math.round((Date.parse(lot.sellDate) - Date.parse(lot.buyDate)) / 86400000)
+    : null;
+  return {
+    buyFee: buy, cost, sellFee: x.fee, sellTax: x.tax, proceeds,
+    dividend, spread, net, days,
+    spreadRate: cost > 0 ? spread / cost * 100 : 0,
+    netRate: cost > 0 ? net / cost * 100 : 0
+  };
 }
 
 function calc(lot){
@@ -622,7 +749,9 @@ function rowToLot(r){
     shares: Number(r.shares), buyPrice: Number(r.buy_price),
     buyDate: r.buy_date || null,
     fee: num2(r.fee), regular: !!r.regular,
-    override: num2(r.price_override), dividend: num2(r.dividend)
+    override: num2(r.price_override), dividend: num2(r.dividend),
+    sellDate: r.sell_date || null, sellPrice: num2(r.sell_price),
+    sellFee: num2(r.sell_fee), sellTax: num2(r.sell_tax)
   };
 }
 function lotToRow(l){
@@ -631,7 +760,9 @@ function lotToRow(l){
     shares: l.shares, buy_price: l.buyPrice,
     buy_date: l.buyDate || null,
     fee: l.fee ?? null, regular: !!l.regular,
-    price_override: l.override ?? null, dividend: l.dividend ?? null
+    price_override: l.override ?? null, dividend: l.dividend ?? null,
+    sell_date: l.sellDate || null, sell_price: l.sellPrice ?? null,
+    sell_fee: l.sellFee ?? null, sell_tax: l.sellTax ?? null
   };
 }
 
@@ -826,7 +957,9 @@ function dumpJson(){
       _raw: {                                   // 原始欄位，供日後匯回使用
         id: String(l.id), code: l.code, name: l.name, shares: l.shares,
         buyPrice: l.buyPrice, buyDate: l.buyDate, regular: !!l.regular,
-        fee: l.fee ?? null, override: l.override ?? null, dividend: l.dividend ?? null
+        fee: l.fee ?? null, override: l.override ?? null, dividend: l.dividend ?? null,
+        sellDate: l.sellDate || null, sellPrice: l.sellPrice ?? null,
+        sellFee: l.sellFee ?? null, sellTax: l.sellTax ?? null
       }
     };
   });
@@ -879,7 +1012,11 @@ function normalizeLot(r){
     regular: Boolean(raw.regular ?? r.定期定額 ?? false),
     fee: r._raw ? numOrNull(raw.fee) : null,
     override: r._raw ? numOrNull(raw.override) : null,
-    dividend: r._raw ? numOrNull(raw.dividend) : null
+    dividend: r._raw ? numOrNull(raw.dividend) : null,
+    sellDate: raw.sellDate ?? r.賣出日 ?? null,
+    sellPrice: numOrNull(raw.sellPrice ?? r.賣出價),
+    sellFee: r._raw ? numOrNull(raw.sellFee) : null,
+    sellTax: r._raw ? numOrNull(raw.sellTax) : null
   };
 }
 
@@ -1000,6 +1137,9 @@ function upgrade(list){
     if(!Object.prototype.hasOwnProperty.call(o, "buyDate")) o.buyDate = null;
     if(!Object.prototype.hasOwnProperty.call(o, "fee")) o.fee = null;
     if(!Object.prototype.hasOwnProperty.call(o, "regular")) o.regular = false;
+    ["sellDate", "sellPrice", "sellFee", "sellTax"].forEach(k => {
+      if(!Object.prototype.hasOwnProperty.call(o, k)) o[k] = null;
+    });
     return o;
   });
 }
@@ -1028,28 +1168,53 @@ function keepBasis(){
 
 /* ── 繪製 ───────────────────────────── */
 function paint(){
-  let cost = 0, dividend = 0, gain = 0, fee = 0, net = 0;
-  lots.forEach(l => {
-    const c = calc(l);
-    cost += c.cost; dividend += c.dividend; gain += c.gain; fee += c.fee; net += c.net;
-  });
-  const rate = cost > 0 ? gain / cost * 100 : 0;
-  const netGain = net - cost - fee + (withDividend ? dividend : 0);
-  const netRate = cost > 0 ? netGain / cost * 100 : 0;
-
+  const held = openLots(), sold = closedLots();
   const set = (id, txt, cls) => {
     const el = document.getElementById(id);
     el.textContent = txt;
     if(cls) el.className = cls;
   };
-  set("vCost", money(cost));
-  set("vDiv", money(dividend));
-  set("vGain", money(gain), "v " + tone(gain));
-  set("vRate", pct(rate), "pct " + tone(rate));
-  set("vNet", money(netGain), "v " + tone(netGain));
-  set("vNetRate", pct(netRate), "pct " + tone(netRate));
 
-  document.getElementById("kGain").textContent = withDividend ? "帳面損益 · 含息" : "帳面損益 · 只算價差";
+  if(tab === "sold"){
+    let cost = 0, dividend = 0, spread = 0, net = 0;
+    sold.forEach(l => {
+      const c = calcClosed(l);
+      cost += c.cost; dividend += c.dividend; spread += c.spread; net += c.net;
+    });
+    set("vCost", money(cost));
+    set("vDiv", money(dividend));
+    set("vGain", money(spread), "v " + tone(spread));
+    set("vRate", pct(cost > 0 ? spread / cost * 100 : 0), "pct " + tone(spread));
+    set("vNet", money(net), "v " + tone(net));
+    set("vNetRate", pct(cost > 0 ? net / cost * 100 : 0), "pct " + tone(net));
+    document.getElementById("kGain").textContent = "價差損益";
+    document.getElementById("kNet").textContent = "實收損益";
+  } else {
+    let cost = 0, dividend = 0, gain = 0, fee = 0, net = 0;
+    held.forEach(l => {
+      const c = calc(l);
+      cost += c.cost; dividend += c.dividend; gain += c.gain; fee += c.fee; net += c.net;
+    });
+    const netGain = net - cost - fee + (withDividend ? dividend : 0);
+    set("vCost", money(cost));
+    set("vDiv", money(dividend));
+    set("vGain", money(gain), "v " + tone(gain));
+    set("vRate", pct(cost > 0 ? gain / cost * 100 : 0), "pct " + tone(gain));
+    set("vNet", money(netGain), "v " + tone(netGain));
+    set("vNetRate", pct(cost > 0 ? netGain / cost * 100 : 0), "pct " + tone(netGain));
+    document.getElementById("kGain").textContent = withDividend ? "帳面損益 · 含息" : "帳面損益 · 只算價差";
+    document.getElementById("kNet").textContent = "實際損益";
+  }
+
+  document.getElementById("cntHeld").textContent = held.length;
+  document.getElementById("cntSold").textContent = sold.length;
+  document.getElementById("tabHeld").setAttribute("aria-selected", String(tab === "held"));
+  document.getElementById("tabSold").setAttribute("aria-selected", String(tab === "sold"));
+  document.getElementById("viewHeld").hidden = tab !== "held";
+  document.getElementById("viewSold").hidden = tab !== "sold";
+  document.getElementById("legendHeld").hidden = tab !== "held";
+  document.getElementById("legendSold").hidden = tab !== "sold";
+  document.getElementById("bookTitle").textContent = tab === "sold" ? "已賣出紀錄" : "持股明細";
   document.getElementById("bTotal").setAttribute("aria-pressed", String(withDividend));
   document.getElementById("bPrice").setAttribute("aria-pressed", String(!withDividend));
   document.getElementById("basisNote").textContent =
@@ -1058,14 +1223,16 @@ function paint(){
   const book = document.getElementById("book");
   book.innerHTML = "";
   lockForm();
-  if(lots.length === 0){
+  paintSold();
+
+  if(held.length === 0){
     book.innerHTML = `<tr class="blank"><td colspan="9">${blankMessage()}</td></tr>`;
     return;
   }
 
   /* 分組 */
   const order = [], group = {};
-  lots.forEach(l => {
+  held.forEach(l => {
     if(!group[l.code]){
       group[l.code] = { code:l.code, name:l.name, shares:0, cost:0, fee:0, spread:0,
                         dividend:0, net:0, sellFee:0, sellTax:0, prices:[], owned:0, rows:[] };
@@ -1176,7 +1343,7 @@ function paint(){
           <span class="rule" data-bar="${barOf(c.rate)}" style="width:${firstPaint ? 0 : barOf(c.rate)}%"></span>
         </span></td>
         <td class="settled">${money(c.net)}<span class="sub">${sellNote(c.sellFee, c.sellTax, exempt)}</span></td>
-        <td><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
+        <td><button class="btn-sell" data-sell="${l.id}">賣出</button><button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
       book.appendChild(row);
     });
   });
@@ -1209,7 +1376,194 @@ function lockForm(){
   if(form) form.classList.toggle("locked", !on);
 }
 
+/** 已賣出分頁：依賣出日新到舊排列，不分組 */
+function paintSold(){
+  const body = document.getElementById("bookSold");
+  const sold = closedLots().slice()
+    .sort((a, b) => String(b.sellDate).localeCompare(String(a.sellDate)));
+  body.innerHTML = "";
+
+  if(sold.length === 0){
+    body.innerHTML = `<tr class="blank"><td colspan="10">` +
+      (session && loaded
+        ? `<strong>還沒有賣出紀錄</strong>在持有分頁的任一筆按「賣出」，結束的部位會記在這裡。`
+        : blankMessage()) + `</td></tr>`;
+    return;
+  }
+
+  sold.forEach(l => {
+    const c = calcClosed(l);
+    const dir = c.net > 0 ? " up" : (c.net < 0 ? " down" : "");
+    const mark = c.net > 0 ? "▲" : (c.net < 0 ? "▼" : "");
+    const exempt = taxRate(l.code) === 0;
+
+    const tr = document.createElement("tr");
+    tr.className = "line" + dir;
+    tr.innerHTML = `
+      <td class="l"><span class="sym">${esc(l.code)}</span>
+        <span class="co">${esc(l.name)}</span></td>
+      <td>${l.shares.toLocaleString("en-US")}</td>
+      <td class="hide-sm">${l.buyPrice.toFixed(2)}<span class="sub">${l.buyDate ? esc(l.buyDate) : "日期不明"}</span></td>
+      <td>${Number(l.sellPrice).toFixed(2)}<span class="sub">${esc(l.sellDate)}</span></td>
+      <td class="hide-sm">${c.days === null ? "—" : c.days + " 天"}</td>
+      <td>${money(c.cost)}<span class="sub">手續費 <b>${num(c.buyFee)}</b></span></td>
+      <td class="${c.dividend > 0 ? "" : "nil"}">${money(c.dividend)}</td>
+      <td class="${tone(c.spread)}">${money(c.spread)}<span class="gauge">
+        <span class="num">${pct(c.spreadRate)}</span></span></td>
+      <td class="pl ${tone(c.net)}"><span class="mark">${mark}</span>${money(c.net)}<span class="gauge">
+        <span class="num">${pct(c.netRate)}</span></span>
+        <span class="sub">賣出手續費 <b>${num(c.sellFee)}</b><span class="plus"> ＋ </span>證交稅 <b>${exempt ? "免徵" : num(c.sellTax)}</b></span></td>
+      <td><button class="ghost" data-undo="${l.id}" title="撤銷賣出，改回持有" aria-label="撤銷賣出">↺</button>` +
+        `<button class="ghost drop" data-del="${l.id}" title="刪除這筆" aria-label="刪除這筆">✕</button></td>`;
+    body.appendChild(tr);
+  });
+}
+
 const findLot = id => lots.find(x => String(x.id) === String(id));
+
+/* ── 賣出 ───────────────────────────── */
+let sellId = null;
+
+function closeSell(){
+  sellId = null;
+  const box = document.getElementById("sellBox");
+  box.hidden = true;
+  box.innerHTML = "";
+}
+
+function openSell(id){
+  const lot = findLot(id);
+  if(!lot) return;
+  sellId = id;
+  const box = document.getElementById("sellBox");
+  box.hidden = false;
+  box.innerHTML = `
+    <h3>賣出 ${esc(lot.code)} ${esc(lot.name)}</h3>
+    <p class="lede">持有 ${lot.shares.toLocaleString("en-US")} 股，買進價 ${lot.buyPrice.toFixed(2)}${lot.buyDate ? "，" + esc(lot.buyDate) + " 買進" : ""}。
+      只賣一部分的話，這筆會拆成兩列，買進手續費按股數比例分攤。</p>
+    <div class="grid">
+      <div><label for="sQty">賣出股數</label>
+        <input id="sQty" type="number" min="1" max="${lot.shares}" value="${lot.shares}" inputmode="numeric"></div>
+      <div><label for="sPrice">賣出價</label>
+        <input id="sPrice" type="number" min="0" step="0.01" value="${priceOf(lot)}" inputmode="decimal"></div>
+      <div><label for="sDate">賣出日</label>
+        <input id="sDate" type="date" value="${today()}"></div>
+      <div><label for="sFee">賣出手續費</label>
+        <input id="sFee" type="number" min="0" step="1" placeholder="自動" inputmode="numeric"></div>
+      <div><label for="sTax">證交稅</label>
+        <input id="sTax" type="number" min="0" step="1" placeholder="自動" inputmode="numeric"></div>
+    </div>
+    <div class="preview" id="sPreview"></div>
+    <div class="row">
+      <button class="go" id="sGo">確認賣出</button>
+      <button id="sNo">取消</button>
+      <span class="err" id="sErr"></span>
+    </div>`;
+
+  ["sQty", "sPrice", "sDate", "sFee", "sTax"].forEach(id =>
+    document.getElementById(id).addEventListener("input", sellPreview));
+  document.getElementById("sNo").addEventListener("click", closeSell);
+  document.getElementById("sGo").addEventListener("click", doSell);
+  sellPreview();
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/** 讀取賣出面板的欄位並算出結果，順便驗證 */
+function sellDraft(){
+  const lot = findLot(sellId);
+  if(!lot) return null;
+  const qty = parseFloat(document.getElementById("sQty").value);
+  const price = parseFloat(document.getElementById("sPrice").value);
+  const date = document.getElementById("sDate").value;
+  const feeRaw = document.getElementById("sFee").value.trim();
+  const taxRaw = document.getElementById("sTax").value.trim();
+
+  if(!qty || qty <= 0) return { err: "賣出股數要大於 0" };
+  if(qty > lot.shares) return { err: `最多只能賣 ${lot.shares.toLocaleString("en-US")} 股` };
+  if(!price || price <= 0) return { err: "賣出價要大於 0" };
+  if(!date) return { err: "請選賣出日" };
+  if(lot.buyDate && date < lot.buyDate) return { err: "賣出日不能早於買進日" };
+
+  const value = price * qty;
+  const fee = feeRaw === "" ? standardFee(value, false) : Math.max(0, parseFloat(feeRaw));
+  const tax = taxRaw === "" ? Math.floor(value * taxRate(lot.code)) : Math.max(0, parseFloat(taxRaw));
+  if(isNaN(fee) || isNaN(tax)) return { err: "手續費與證交稅請填數字，或留空自動計算" };
+
+  const buyPart = Math.round(buyFee(lot) * qty / lot.shares);   // 依股數分攤買進手續費
+  const cost = qty * lot.buyPrice;
+  const proceeds = value - fee - tax;
+  return {
+    lot, qty, price, date, fee, tax, buyPart, cost, proceeds,
+    spread: (price - lot.buyPrice) * qty,
+    net: proceeds - cost - buyPart,
+    partial: qty < lot.shares
+  };
+}
+
+function sellPreview(){
+  const d = sellDraft();
+  const box = document.getElementById("sPreview");
+  const err = document.getElementById("sErr");
+  if(!d) return;
+  if(d.err){ box.innerHTML = ""; err.textContent = d.err; return; }
+  err.textContent = "";
+  box.innerHTML =
+    `賣出金額 <b>${money(d.price * d.qty)}</b>` +
+    ` − 手續費 <b>${num(d.fee)}</b> − 證交稅 <b>${num(d.tax)}</b>` +
+    ` = 實收 <b>${money(d.proceeds)}</b><br>` +
+    `減 本金 <b>${money(d.cost)}</b> 與買進手續費 <b>${num(d.buyPart)}</b>` +
+    ` → 實收損益 <b class="${tone(d.net)}">${money(d.net)}</b>` +
+    ` （${pct(d.cost > 0 ? d.net / d.cost * 100 : 0)}）` +
+    (d.partial ? `<br>賣出後仍持有 <b>${(d.lot.shares - d.qty).toLocaleString("en-US")}</b> 股` : "");
+}
+
+function doSell(){
+  const d = sellDraft();
+  if(!d) return;
+  if(d.err){ document.getElementById("sErr").textContent = d.err; return; }
+  const lot = d.lot;
+  const wholeFee = buyFee(lot);
+
+  if(d.partial){
+    // 拆成兩列：賣掉的那份獨立成新列，原列留下剩餘股數
+    lots.push({
+      id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+      code: lot.code, name: lot.name,
+      shares: d.qty, buyPrice: lot.buyPrice, buyDate: lot.buyDate,
+      regular: lot.regular,
+      fee: d.buyPart,                       // 分攤後的手續費要寫死，不能再自動計算
+      override: null,
+      dividend: lot.dividend === null ? null
+        : Math.round(lot.dividend * d.qty / lot.shares),
+      sellDate: d.date, sellPrice: d.price, sellFee: d.fee, sellTax: d.tax
+    });
+    if(lot.dividend !== null) lot.dividend = lot.dividend - Math.round(lot.dividend * d.qty / lot.shares);
+    lot.shares = lot.shares - d.qty;
+    lot.fee = wholeFee - d.buyPart;
+  } else {
+    lot.fee = wholeFee;                     // 固定住當初實際付的手續費
+    lot.sellDate = d.date;
+    lot.sellPrice = d.price;
+    lot.sellFee = d.fee;
+    lot.sellTax = d.tax;
+    lot.override = null;
+  }
+
+  closeSell();
+  tab = "sold";
+  keep();
+  paint();
+}
+
+/** 撤銷賣出，改回持有 */
+function undoSell(id){
+  const lot = findLot(id);
+  if(!lot) return;
+  lot.sellDate = null; lot.sellPrice = null; lot.sellFee = null; lot.sellTax = null;
+  tab = "held";
+  keep();
+  paint();
+}
 
 function wire(){
   document.querySelectorAll(".num-in").forEach(i => {
@@ -1243,8 +1597,11 @@ function wire(){
   });
   hook("[data-del]", b => {
     lots = lots.filter(x => String(x.id) !== String(b.dataset.del));
+    if(sellId && String(sellId) === String(b.dataset.del)) closeSell();
     keep(); paint();
   });
+  hook("[data-sell]", b => openSell(b.dataset.sell));
+  hook("[data-undo]", b => undoSell(b.dataset.undo));
 }
 
 /* ── 登錄表單 ───────────────────────── */
@@ -1321,6 +1678,9 @@ document.getElementById("fAdd").addEventListener("click", () => {
   resolveName();
   fCode.focus();
 });
+
+document.getElementById("tabHeld").addEventListener("click", () => { tab = "held"; closeSell(); paint(); });
+document.getElementById("tabSold").addEventListener("click", () => { tab = "sold"; closeSell(); paint(); });
 
 document.getElementById("bTotal").addEventListener("click", () => { withDividend = true; keepBasis(); paint(); });
 document.getElementById("bPrice").addEventListener("click", () => { withDividend = false; keepBasis(); paint(); });

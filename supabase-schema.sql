@@ -48,3 +48,17 @@ drop trigger if exists holdings_touch on public.holdings;
 create trigger holdings_touch
   before update on public.holdings
   for each row execute function public.touch_updated_at();
+
+
+-- ── 賣出紀錄（2026-08 新增）────────────────────────────
+-- 每一列是一個「部位切片」：有 sell_date 就是已結束的部位，沒有就是持有中。
+-- 部分賣出時把原本那列拆成兩列，買進手續費按股數比例分攤。
+-- 已經建過表的話，單獨執行這段即可。
+
+alter table public.holdings add column if not exists sell_date  date;
+alter table public.holdings add column if not exists sell_price numeric;
+alter table public.holdings add column if not exists sell_fee   numeric;  -- null = 用標準費率
+alter table public.holdings add column if not exists sell_tax   numeric;  -- null = 用標準稅率
+
+create index if not exists holdings_open_idx
+  on public.holdings (user_id) where sell_date is null;

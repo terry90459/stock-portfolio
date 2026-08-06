@@ -610,6 +610,8 @@ let sb = null;         // Supabase client，沒設定就維持 null（純本機�
 let session = null;
 let pushTimer = null;
 let suppressPush = false;   // 剛從雲端拉下來時，不要再原封不動推回去
+let loaded = false;         // 是否已成功取得雲端完整快照
+let dirty = false;          // 有未上傳的異動
 
 const accEl = () => document.getElementById("account");
 const num2 = v => (v === null || v === undefined || v === "") ? null : Number(v);
@@ -655,7 +657,7 @@ function renderAccount(){
     document.getElementById("accLoad").addEventListener("click", pickFile);
     document.getElementById("accOut").addEventListener("click", async () => {
       await sb.auth.signOut();
-      lots = [];
+      lots = []; loaded = false; dirty = false;
       paint();
       syncNote("已登出");
     });
@@ -706,14 +708,21 @@ async function auth(mode){
 /** 登入後拉資料。雲端是空的且這台裝置還有舊資料，就搬上去再清掉本機。 */
 async function pullDown(){
   syncNote("讀取雲端資料…");
+  loaded = false;
   const { data, error } = await sb.from("holdings").select("*");
-  if(error){ syncNote(`讀取失敗：${error.message}`, true); return; }
+  if(error){
+    lots = [];
+    paint();
+    syncNote(`讀取失敗：${error.message} — 請重新整理再試`, true);
+    return;
+  }
 
   if(data.length === 0){
     const legacy = readLegacy();
     if(legacy.length){
       syncNote(`把這台裝置殘留的 ${legacy.length} 筆搬上雲端…`);
       lots = legacy;
+      loaded = true;
       paint();
       await pushUp(true);
       dropLegacy();
@@ -723,6 +732,7 @@ async function pullDown(){
   }
 
   lots = upgrade(data.map(rowToLot));
+  loaded = true;
   suppressPush = true;
   keep();
   suppressPush = false;
@@ -734,6 +744,11 @@ async function pullDown(){
 /** 把目前的持股整批推上去，並刪掉雲端多出來的列 */
 async function pushUp(quiet){
   if(!sb || !session) return;
+  if(!loaded){
+    // 還沒成功讀到雲端快照就上傳，底下的刪除會把雲端其他持股一起清掉
+    syncNote("尚未取得雲端資料，暫停同步以免覆蓋", true);
+    return;
+  }
   if(!quiet) syncNote("同步中…");
 
   const rows = lots.map(lotToRow);
@@ -741,7 +756,7 @@ async function pushUp(quiet){
     const { error } = await sb.from("holdings")
       .upsert(rows.map(r => ({ ...r, user_id: session.user.id })),
               { onConflict: "user_id,id" });
-    if(error){ syncNote(`同步失敗：${error.message}`, true); return; }
+    if(error){ syncNote(`同步失敗：${error.message}（改動尚未存到雲端）`, true); return; }
   }
 
   const ids = lots.map(l => String(l.id).replace(/[^A-Za-z0-9._-]/g, ""));
@@ -750,12 +765,14 @@ async function pushUp(quiet){
   const { error: delErr } = await del;
   if(delErr){ syncNote(`清理失敗：${delErr.message}`, true); return; }
 
+  dirty = false;
   syncNote(`已同步 ${rows.length} 筆 · ${new Date().toLocaleTimeString("zh-TW", {hour:"2-digit",minute:"2-digit"})}`);
 }
 
 /** 本機有變動時排程上傳，避免連續操作打太多次 */
 function schedulePush(){
   if(!sb || !session || suppressPush) return;
+  dirty = true;
   clearTimeout(pushTimer);
   syncNote("待同步…");
   pushTimer = setTimeout(pushUp, 800);
@@ -788,7 +805,7 @@ async function initCloud(){
     session = s || null;
     renderAccount();
     if(session && event === "SIGNED_IN") await pullDown();
-    if(!session){ lots = []; paint(); syncNote(""); }
+    if(!session){ lots = []; loaded = false; dirty = false; paint(); syncNote(""); }
   });
 }
 
@@ -1177,12 +1194,13 @@ function paint(){
 function blankMessage(){
   if(!sb) return `<strong>尚未設定雲端</strong>請先在 config.js 填入 Supabase 連線資訊。`;
   if(!session) return `<strong>請先登入</strong>持股資料存在雲端，登入後才會顯示。`;
+  if(!loaded) return `<strong>讀不到雲端資料</strong>為避免覆蓋，暫時停用編輯。請重新整理再試一次。`;
   return `<strong>存摺還是空的</strong>在上方登錄第一筆買進，這裡就會開始記帳。`;
 }
 
 /** 未登入時鎖住登錄表單，避免資料無處可去 */
 function lockForm(){
-  const on = Boolean(sb && session);
+  const on = Boolean(sb && session && loaded);
   ["fCode","fShares","fPrice","fDate","fFee","fRegular","fManual","fAdd"].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.disabled = !on;
@@ -1309,6 +1327,11 @@ document.getElementById("bPrice").addEventListener("click", () => { withDividend
 
 /* ── 啟動 ───────────────────────────── */
 document.getElementById("accFile").addEventListener("change", onFileChosen);
+
+// 沒有本機快取，未上傳的改動一關就沒了，離開前攔一下
+window.addEventListener("beforeunload", e => {
+  if(dirty){ e.preventDefault(); e.returnValue = ""; }
+});
 
 (async function start(){
   restore();

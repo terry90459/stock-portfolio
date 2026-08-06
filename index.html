@@ -73,8 +73,9 @@
   .account input{
     background: transparent; border: none; border-bottom: 1px solid var(--ink);
     font-family: var(--mono); font-size: 14px; color: var(--ink);
-    padding: 4px 2px; width: 210px;
+    padding: 4px 2px; width: 170px;
   }
+  .account input[type=password]{ width: 130px; }
   .account input:focus{ outline: none; border-bottom: 2px solid var(--stamp); padding-bottom: 3px; }
   .account button{
     appearance: none; background: transparent; border: 1px solid var(--ink);
@@ -82,6 +83,8 @@
     padding: 5px 14px; cursor: pointer;
   }
   .account button:hover{ background: var(--ink); color: var(--paper); }
+  .account button.ghosty{ border-color: var(--rule); color: var(--ink-soft); }
+  .account button.ghosty:hover{ background: var(--ink-soft); color: var(--paper); }
   .account .syncing{ font-family: var(--mono); font-size: 12px; }
   .account .syncing.err{ color: var(--rise); }
 
@@ -308,6 +311,8 @@
     .fields .f.wide, .fields .commit, .fields .check{ grid-column: 1 / -1; max-width: none; }
     .commit{ width: 100%; }
     .hide-sm{ display: none; }
+    .account .acts{ margin-left: 0; width: 100%; flex-wrap: wrap; }
+    .account input, .account input[type=password]{ width: 100%; }
   }
 </style>
 </head>
@@ -620,27 +625,48 @@ function renderAccount(){
       await sb.auth.signOut();
       syncNote("已登出，資料留在這台裝置");
     });
-  } else {
-    who.textContent = "尚未登入，資料只存在這台裝置";
-    acts.innerHTML =
-      `<input id="accMail" type="email" placeholder="你的 Email" autocomplete="email">` +
-      `<button id="accIn">寄登入連結</button>`;
-    document.getElementById("accIn").addEventListener("click", sendLink);
-    document.getElementById("accMail").addEventListener("keydown", e => {
-      if(e.key === "Enter") sendLink();
-    });
+    return;
   }
+
+  who.textContent = "尚未登入，資料只存在這台裝置";
+  acts.innerHTML =
+    `<input id="accMail" type="email" placeholder="Email" autocomplete="username">` +
+    `<input id="accPass" type="password" placeholder="密碼" autocomplete="current-password">` +
+    `<button id="accIn">登入</button>` +
+    `<button id="accUp" class="ghosty">註冊</button>`;
+
+  document.getElementById("accIn").addEventListener("click", () => auth("in"));
+  document.getElementById("accUp").addEventListener("click", () => auth("up"));
+  document.getElementById("accPass").addEventListener("keydown", e => {
+    if(e.key === "Enter") auth("in");
+  });
 }
 
-async function sendLink(){
+/** mode: "in" 登入、"up" 註冊 */
+async function auth(mode){
   const email = (document.getElementById("accMail").value || "").trim();
-  if(!email){ syncNote("請先填 Email", true); return; }
-  syncNote("寄送中…");
-  const { error } = await sb.auth.signInWithOtp({
-    email, options: { emailRedirectTo: location.href.split("#")[0] }
-  });
-  syncNote(error ? `寄送失敗：${error.message}` : "連結寄出了，去收信點開就會登入",
-           Boolean(error));
+  const password = document.getElementById("accPass").value || "";
+  if(!email || !password){ syncNote("Email 和密碼都要填", true); return; }
+  if(mode === "up" && password.length < 8){
+    syncNote("密碼至少 8 個字元", true); return;
+  }
+
+  syncNote(mode === "up" ? "建立帳號中…" : "登入中…");
+  const fn = mode === "up" ? "signUp" : "signInWithPassword";
+  const { data, error } = await sb.auth[fn]({ email, password });
+
+  if(error){
+    const hint = {
+      "Invalid login credentials": "Email 或密碼不對；還沒有帳號的話請按註冊",
+      "User already registered": "這個 Email 已經註冊過了，直接按登入",
+    }[error.message] || error.message;
+    syncNote(hint, true);
+    return;
+  }
+  // 若專案開著「需驗證 Email」，註冊後不會馬上有 session
+  if(mode === "up" && !data.session){
+    syncNote("帳號建好了，請收信點驗證連結後再登入");
+  }
 }
 
 /** 登入後拉資料。雲端是空的就把本機的推上去，否則以雲端為準。 */

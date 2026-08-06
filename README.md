@@ -59,14 +59,15 @@ python3 -m http.server 8000       # 開 http://localhost:8000
 
 ## 跨裝置同步（Supabase）
 
-`config.js` 填入 Supabase 專案網址與 anon key 之後，頁面上方會出現帳號列，
-用 Email 收登入連結即可跨裝置同步。兩個值留空則維持純本機模式。
+`config.js` 填入 Supabase 專案網址與 publishable key 之後，頁面上方會出現帳號列，
+用 Email 與密碼登入即可跨裝置同步。兩個值留空則維持純本機模式。
 
 設定步驟：
 
 1. 建立 Supabase 專案
 2. SQL Editor 貼上 `supabase-schema.sql` 執行
-3. Authentication → URL Configuration 把網站網址加入 Redirect URLs
+3. Authentication → Sign In / Providers → Email，關閉 Confirm email
+   （個人使用，關掉才能註冊完直接登入；之後帳號建好可再關閉 Allow new users to sign up）
 4. Project Settings → API Keys 取得 Project URL 與 Publishable key，填進 `config.js`
 
 Publishable key（`sb_publishable_...`）是設計給瀏覽器用的公開金鑰，放在公開 repo 沒問題；

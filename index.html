@@ -180,6 +180,8 @@
     letter-spacing: .08em; padding: 11px 26px; cursor: pointer;
   }
   .commit:hover{ background: var(--stamp); }
+  .entry-form.locked{ opacity: .5; }
+  .entry-form.locked .commit{ cursor: not-allowed; }
   .note{
     font-size: 13px; color: var(--ink-soft); line-height: 1.75;
     margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule-fine);
@@ -433,7 +435,7 @@
   </p>
 
   <footer class="colophon">
-    <span>資料存於本機瀏覽器，不會離開這台裝置</span>
+    <span>持股資料存放於你的 Supabase 帳號，僅本人可讀取</span>
     <span id="stampTime"></span>
   </footer>
 </div>
@@ -623,7 +625,9 @@ function renderAccount(){
     acts.innerHTML = `<button id="accOut">登出</button>`;
     document.getElementById("accOut").addEventListener("click", async () => {
       await sb.auth.signOut();
-      syncNote("已登出，資料留在這台裝置");
+      lots = [];
+      paint();
+      syncNote("已登出");
     });
     return;
   }
@@ -669,22 +673,31 @@ async function auth(mode){
   }
 }
 
-/** 登入後拉資料。雲端是空的就把本機的推上去，否則以雲端為準。 */
+/** 登入後拉資料。雲端是空的且這台裝置還有舊資料，就搬上去再清掉本機。 */
 async function pullDown(){
   syncNote("讀取雲端資料…");
   const { data, error } = await sb.from("holdings").select("*");
   if(error){ syncNote(`讀取失敗：${error.message}`, true); return; }
 
-  if(data.length === 0 && lots.length > 0){
-    syncNote("雲端還是空的，把這台裝置的資料上傳…");
-    await pushUp(true);
-    return;
+  if(data.length === 0){
+    const legacy = readLegacy();
+    if(legacy.length){
+      syncNote(`把這台裝置殘留的 ${legacy.length} 筆搬上雲端…`);
+      lots = legacy;
+      paint();
+      await pushUp(true);
+      dropLegacy();
+      syncNote(`已搬移 ${legacy.length} 筆到雲端，本機副本已清除`);
+      return;
+    }
   }
+
   lots = upgrade(data.map(rowToLot));
   suppressPush = true;
   keep();
   suppressPush = false;
   paint();
+  dropLegacy();                     // 雲端已是主體，本機殘留不再需要
   syncNote(`已同步 ${data.length} 筆`);
 }
 
@@ -720,7 +733,8 @@ function schedulePush(){
 
 async function initCloud(){
   if(!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || !window.supabase){
-    renderAccount();          // 沒設定就整條藏起來，純本機模式
+    renderAccount();
+    paint();
     return;
   }
   sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
@@ -728,17 +742,23 @@ async function initCloud(){
   const { data } = await sb.auth.getSession();
   session = data.session || null;
   renderAccount();
+  paint();
   if(session) await pullDown();
 
   sb.auth.onAuthStateChange(async (event, s) => {
     session = s || null;
     renderAccount();
     if(session && event === "SIGNED_IN") await pullDown();
-    if(!session) syncNote("");
+    if(!session){ lots = []; paint(); syncNote(""); }
   });
 }
 
 /* ── 儲存 ───────────────────────────── */
+/*
+   持股只存在雲端。localStorage 僅保留兩樣不敏感的東西：
+   計息切換偏好，以及 Supabase 自己管理的登入 session。
+   KEY_LOTS 用來承接改版前留在裝置上的舊資料，登入時上傳完就刪掉。
+*/
 function upgrade(list){
   return list.map(l => {
     const o = Object.assign({}, l);
@@ -754,17 +774,25 @@ function upgrade(list){
     return o;
   });
 }
+
+/** 讀取改版前殘留在這台裝置上的持股，用完就該清掉 */
+function readLegacy(){
+  try{
+    const raw = localStorage.getItem(KEY_LOTS);
+    return raw ? upgrade(JSON.parse(raw)) : [];
+  }catch(e){ return []; }
+}
+function dropLegacy(){
+  try{ localStorage.removeItem(KEY_LOTS); }catch(e){}
+}
+
 function restore(){
-  try{ const raw = localStorage.getItem(KEY_LOTS); lots = raw ? upgrade(JSON.parse(raw)) : []; }
-  catch(e){ lots = []; }
+  lots = [];                                   // 未登入不顯示任何持股
   try{ withDividend = localStorage.getItem(KEY_BASIS) !== "price"; }
   catch(e){ withDividend = true; }
 }
-function keep(){
-  try{ localStorage.setItem(KEY_LOTS, JSON.stringify(lots)); }
-  catch(e){ console.error("寫入失敗", e); }
-  schedulePush();
-}
+/** 名稱沿用，但不再寫入本機，只負責觸發上傳 */
+function keep(){ schedulePush(); }
 function keepBasis(){
   try{ localStorage.setItem(KEY_BASIS, withDividend ? "total" : "price"); }catch(e){}
 }
@@ -800,9 +828,9 @@ function paint(){
 
   const book = document.getElementById("book");
   book.innerHTML = "";
+  lockForm();
   if(lots.length === 0){
-    book.innerHTML = `<tr class="blank"><td colspan="9">
-      <strong>存摺還是空的</strong>在上方登錄第一筆買進，這裡就會開始記帳。</td></tr>`;
+    book.innerHTML = `<tr class="blank"><td colspan="9">${blankMessage()}</td></tr>`;
     return;
   }
 
@@ -934,6 +962,23 @@ function paint(){
   document.getElementById("stampTime").textContent = "檢視於 " + today();
 }
 
+function blankMessage(){
+  if(!sb) return `<strong>尚未設定雲端</strong>請先在 config.js 填入 Supabase 連線資訊。`;
+  if(!session) return `<strong>請先登入</strong>持股資料存在雲端，登入後才會顯示。`;
+  return `<strong>存摺還是空的</strong>在上方登錄第一筆買進，這裡就會開始記帳。`;
+}
+
+/** 未登入時鎖住登錄表單，避免資料無處可去 */
+function lockForm(){
+  const on = Boolean(sb && session);
+  ["fCode","fShares","fPrice","fDate","fFee","fRegular","fManual","fAdd"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.disabled = !on;
+  });
+  const form = document.querySelector(".entry-form");
+  if(form) form.classList.toggle("locked", !on);
+}
+
 const findLot = id => lots.find(x => String(x.id) === String(id));
 
 function wire(){
@@ -1026,6 +1071,7 @@ document.getElementById("fAdd").addEventListener("click", () => {
   const raw = fFee.value.trim();
   const fee = raw === "" ? null : Math.max(0, parseFloat(raw));
 
+  if(!session){ fAlert.textContent = "請先登入才能登錄持股"; return; }
   if(!code){ fAlert.textContent = "還缺代號"; fCode.focus(); return; }
   if(!shares || shares <= 0){ fAlert.textContent = "股數要大於 0"; return; }
   if(!buyPrice || buyPrice <= 0){ fAlert.textContent = "買進價要大於 0"; return; }

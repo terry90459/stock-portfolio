@@ -453,6 +453,7 @@ const URL_DIVS = "dividends.json";
 let lots = [];
 let quotes = {};
 let divsByCode = {};
+let quoteDate = null;
 let withDividend = true;
 let firstPaint = true;
 const shut = new Set();
@@ -560,6 +561,7 @@ async function loadFeeds(){
   try{
     const d = await grab(URL_PRICES);
     quotes = d.prices || {};
+    quoteDate = d.tradeDate || null;
     if(d.tradeDate && d.count > 0){
       ok = true; head = `收盤 ${esc(d.tradeDate)}`;
       tail = `${d.count.toLocaleString("en-US")} 檔自動報價`;
@@ -622,7 +624,9 @@ function renderAccount(){
 
   if(session){
     who.innerHTML = `已登入 <b>${esc(session.user.email)}</b>`;
-    acts.innerHTML = `<button id="accOut">登出</button>`;
+    acts.innerHTML = `<button id="accDump" class="ghosty">匯出 JSON</button>` +
+                     `<button id="accOut">登出</button>`;
+    document.getElementById("accDump").addEventListener("click", dumpJson);
     document.getElementById("accOut").addEventListener("click", async () => {
       await sb.auth.signOut();
       lots = [];
@@ -737,7 +741,16 @@ async function initCloud(){
     paint();
     return;
   }
-  sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  // 登入狀態存在 sessionStorage：關掉分頁就失效，不會留在裝置上。
+  // 代價是每開一個新分頁都要重登一次。
+  sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+    auth: {
+      storage: window.sessionStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false
+    }
+  });
 
   const { data } = await sb.auth.getSession();
   session = data.session || null;
@@ -751,6 +764,51 @@ async function initCloud(){
     if(session && event === "SIGNED_IN") await pullDown();
     if(!session){ lots = []; paint(); syncNote(""); }
   });
+}
+
+/** 把目前持股存成 JSON 檔下載。附上當下的計算結果，離線也讀得懂。 */
+function dumpJson(){
+  if(!lots.length){ syncNote("目前沒有持股可以匯出", true); return; }
+
+  const rows = lots.map(l => {
+    const c = calc(l);
+    return {
+      代號: l.code, 名稱: l.name, 股數: l.shares,
+      買進價: l.buyPrice, 買進日: l.buyDate, 定期定額: !!l.regular,
+      買進手續費: c.fee, 成本: c.cost,
+      現價: c.price, 現價來源: priceKind(l) === "own" ? "手動" : "自動",
+      配息: c.dividend, 配息來源: divKind(l) === "own" ? "手動" : "自動",
+      損益: Math.round(c.gain), 報酬率: Number(c.rate.toFixed(2)),
+      賣出手續費: c.sellFee, 證交稅: c.sellTax, 完稅金額: Math.round(c.net),
+      _raw: {                                   // 原始欄位，供日後匯回使用
+        id: String(l.id), code: l.code, name: l.name, shares: l.shares,
+        buyPrice: l.buyPrice, buyDate: l.buyDate, regular: !!l.regular,
+        fee: l.fee ?? null, override: l.override ?? null, dividend: l.dividend ?? null
+      }
+    };
+  });
+
+  const payload = {
+    匯出時間: new Date().toLocaleString("zh-TW"),
+    帳號: session ? session.user.email : null,
+    報價基準日: quoteDate || null,
+    計息方式: withDividend ? "含息" : "只算價差",
+    筆數: rows.length,
+    持股: rows
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `持股存摺_${today()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  syncNote(`已匯出 ${rows.length} 筆`);
 }
 
 /* ── 儲存 ───────────────────────────── */

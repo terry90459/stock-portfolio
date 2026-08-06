@@ -88,6 +88,28 @@
   .account .syncing{ font-family: var(--mono); font-size: 12px; }
   .account .syncing.err{ color: var(--rise); }
 
+  .confirm{
+    border: 1px solid var(--rise); border-top: none;
+    background: #fbf3f1; padding: 16px 18px;
+  }
+  .confirm .warn{ margin: 0 0 12px; font-size: 14px; color: var(--ink); }
+  .confirm .warn b{ color: var(--rise); font-weight: 700; }
+  .confirm dl{
+    margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 8px 28px;
+  }
+  .confirm dl > div{ display: flex; flex-direction: column; gap: 2px; }
+  .confirm dt{ font-size: 11.5px; letter-spacing: .08em; color: var(--ink-soft); }
+  .confirm dd{ margin: 0; font-family: var(--mono); font-size: 14.5px; }
+  .confirm .row{ display: flex; gap: 10px; }
+  .confirm button{
+    appearance: none; background: transparent; border: 1px solid var(--ink);
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    padding: 7px 18px; cursor: pointer;
+  }
+  .confirm button:hover{ background: var(--ink); color: var(--paper); }
+  .confirm button.danger{ border-color: var(--rise); color: var(--rise); }
+  .confirm button.danger:hover{ background: var(--rise); color: #fff; }
+
   /* ── 結存 ───────────────────────────── */
   .balance{
     border: 1px solid var(--rule); border-top: none; background: var(--paper-lit);
@@ -330,7 +352,9 @@
     <span class="who" id="accWho">尚未登入</span>
     <span class="acts" id="accActs"></span>
     <span class="syncing" id="accSync"></span>
+    <input type="file" id="accFile" accept="application/json,.json" hidden>
   </section>
+  <div class="confirm" id="accConfirm" hidden></div>
 
   <section class="balance">
     <div class="cell">
@@ -625,8 +649,10 @@ function renderAccount(){
   if(session){
     who.innerHTML = `已登入 <b>${esc(session.user.email)}</b>`;
     acts.innerHTML = `<button id="accDump" class="ghosty">匯出 JSON</button>` +
+                     `<button id="accLoad" class="ghosty">匯入 JSON</button>` +
                      `<button id="accOut">登出</button>`;
     document.getElementById("accDump").addEventListener("click", dumpJson);
+    document.getElementById("accLoad").addEventListener("click", pickFile);
     document.getElementById("accOut").addEventListener("click", async () => {
       await sb.auth.signOut();
       lots = [];
@@ -790,6 +816,8 @@ function dumpJson(){
 
   const payload = {
     匯出時間: new Date().toLocaleString("zh-TW"),
+    _exportedAt: new Date().toISOString(),      // 供匯入時比對新舊
+    _format: 1,
     帳號: session ? session.user.email : null,
     報價基準日: quoteDate || null,
     計息方式: withDividend ? "含息" : "只算價差",
@@ -809,6 +837,132 @@ function dumpJson(){
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   syncNote(`已匯出 ${rows.length} 筆`);
+}
+
+/* ── 匯入 ───────────────────────────── */
+const numOrNull = v => (v === null || v === undefined || v === "") ? null : Number(v);
+
+/**
+ * 把匯出檔轉回持股陣列。
+ * fee / override / dividend 只從 _raw 讀 —— 中文欄位裡的「買進手續費」是算出來的值，
+ * 誤當成手動覆寫會讓每一筆都變成手動，之後就不會跟著費率調整了。
+ */
+function normalizeLot(r){
+  const raw = r._raw || r;
+  const code = String(raw.code ?? r.代號 ?? "").trim();
+  const shares = Number(raw.shares ?? r.股數);
+  const buyPrice = Number(raw.buyPrice ?? r.買進價);
+  if(!code || !(shares > 0) || !(buyPrice > 0)) return null;
+  return {
+    id: String(raw.id || (Date.now() + "-" + Math.random().toString(36).slice(2, 8))),
+    code,
+    name: String(raw.name ?? r.名稱 ?? code),
+    shares, buyPrice,
+    buyDate: raw.buyDate ?? r.買進日 ?? null,
+    regular: Boolean(raw.regular ?? r.定期定額 ?? false),
+    fee: r._raw ? numOrNull(raw.fee) : null,
+    override: r._raw ? numOrNull(raw.override) : null,
+    dividend: r._raw ? numOrNull(raw.dividend) : null
+  };
+}
+
+function parseExport(text){
+  const d = JSON.parse(text);
+  let list = null;
+  if(Array.isArray(d)) list = d;
+  else if(Array.isArray(d.持股)) list = d.持股;
+  else if(Array.isArray(d.holdings)) list = d.holdings;
+  if(!list) throw new Error("認不得這個檔案的格式");
+
+  const parsed = list.map(normalizeLot);
+  const lots = parsed.filter(Boolean);
+  if(!lots.length) throw new Error("檔案裡沒有可用的持股資料");
+
+  let stamp = null;
+  if(d._exportedAt && !isNaN(Date.parse(d._exportedAt))) stamp = new Date(d._exportedAt);
+  return { lots, skipped: parsed.length - lots.length, stamp };
+}
+
+/** 雲端最後一次更新時間，用來判斷匯入檔是不是舊的 */
+async function cloudStamp(){
+  const { data, error } = await sb.from("holdings")
+    .select("updated_at").order("updated_at", { ascending: false }).limit(1);
+  if(error || !data || !data.length) return null;
+  const t = Date.parse(data[0].updated_at);
+  return isNaN(t) ? null : new Date(t);
+}
+
+const fmtStamp = d => d ? d.toLocaleString("zh-TW", {
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit"
+}) : "不明";
+
+function pickFile(){
+  if(!session){ syncNote("請先登入", true); return; }
+  document.getElementById("accFile").click();
+}
+
+async function onFileChosen(e){
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";                      // 讓同一個檔案可以重選
+  if(!file) return;
+
+  let parsed;
+  try{
+    parsed = parseExport(await file.text());
+  }catch(err){
+    syncNote(`讀取失敗：${err.message}`, true);
+    return;
+  }
+
+  const remote = await cloudStamp();
+  const older = parsed.stamp && remote && parsed.stamp < remote;
+  const unknown = !parsed.stamp;
+
+  if(older || unknown){
+    askImport(parsed, remote, older ? "older" : "unknown");
+  } else {
+    await applyImport(parsed);
+  }
+}
+
+function askImport(parsed, remote, why){
+  const box = document.getElementById("accConfirm");
+  const reason = why === "older"
+    ? `這個檔案<b>比雲端舊</b>。匯入會用檔案內容覆蓋雲端現有的資料，較新的異動會消失。`
+    : `這個檔案<b>沒有時間戳</b>，無法判斷新舊。匯入會用檔案內容覆蓋雲端現有的資料。`;
+
+  box.hidden = false;
+  box.innerHTML = `
+    <p class="warn">${reason}</p>
+    <dl>
+      <div><dt>檔案時間</dt><dd>${esc(fmtStamp(parsed.stamp))}</dd></div>
+      <div><dt>雲端最後更新</dt><dd>${esc(fmtStamp(remote))}</dd></div>
+      <div><dt>檔案筆數</dt><dd>${parsed.lots.length} 筆</dd></div>
+      <div><dt>雲端現有</dt><dd>${lots.length} 筆</dd></div>
+    </dl>
+    <div class="row">
+      <button id="cfNo">取消</button>
+      <button id="cfYes" class="danger">仍要覆蓋</button>
+    </div>`;
+
+  document.getElementById("cfNo").addEventListener("click", () => {
+    box.hidden = true;
+    syncNote("已取消匯入");
+  });
+  document.getElementById("cfYes").addEventListener("click", async () => {
+    box.hidden = true;
+    await applyImport(parsed);
+  });
+}
+
+async function applyImport(parsed){
+  lots = upgrade(parsed.lots);
+  paint();
+  syncNote("匯入中…");
+  await pushUp(true);
+  const skip = parsed.skipped ? `，略過 ${parsed.skipped} 筆無效資料` : "";
+  syncNote(`已匯入 ${lots.length} 筆${skip}`);
 }
 
 /* ── 儲存 ───────────────────────────── */
@@ -1154,6 +1308,8 @@ document.getElementById("bTotal").addEventListener("click", () => { withDividend
 document.getElementById("bPrice").addEventListener("click", () => { withDividend = false; keepBasis(); paint(); });
 
 /* ── 啟動 ───────────────────────────── */
+document.getElementById("accFile").addEventListener("change", onFileChosen);
+
 (async function start(){
   restore();
   paint();

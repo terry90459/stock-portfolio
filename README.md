@@ -67,11 +67,14 @@ python3 -m http.server 8000       # 開 http://localhost:8000
 1. 建立 Supabase 專案
 2. SQL Editor 貼上 `supabase-schema.sql` 執行
 3. Authentication → URL Configuration 把網站網址加入 Redirect URLs
-4. Project Settings → API 取得 Project URL 與 anon public key，填進 `config.js`
+4. Project Settings → API Keys 取得 Project URL 與 Publishable key，填進 `config.js`
 
-anon key 是設計給瀏覽器用的公開金鑰，放在公開 repo 沒問題；
+Publishable key（`sb_publishable_...`）是設計給瀏覽器用的公開金鑰，放在公開 repo 沒問題；
 真正的防線是資料表的 Row Level Security，規則是「只能存取 `user_id = auth.uid()` 的列」。
-**service_role key 絕對不要放進 config.js。**
+舊版 anon key（`eyJ...`）也還能用，但 Supabase 將於 2026 年底停用。
+
+**Secret key（`sb_secret_...`）與舊版 service_role key 絕對不要放進 config.js**，
+那兩把會繞過所有 RLS。
 
 免費方案閒置 7 天會暫停專案，排程裡有一個「喚醒 Supabase」步驟負責定期戳它。
 

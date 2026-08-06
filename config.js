@@ -16,5 +16,5 @@
 //
 // 兩個都留空的話，頁面會維持純本機模式，跟加後端之前一模一樣。
 
-window.SUPABASE_URL = "";
-window.SUPABASE_ANON_KEY = "";
+window.SUPABASE_URL = "https://fwbrqatmcyasevdkfrwq.supabase.co";
+window.SUPABASE_ANON_KEY = "sb_publishable_aZW2X0BxnWbRHNerkJy45A_Ci-BMSJI";
